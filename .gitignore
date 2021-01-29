@@ -1,0 +1,12 @@
+.svn
+.vs
+curl-7.71.1
+curl-7.71.1-win64-mingw
+Debug
+publish
+rapidjson-master
+Release
+RunLinkCurl
+RunStdObject
+transmission-master
+x64
