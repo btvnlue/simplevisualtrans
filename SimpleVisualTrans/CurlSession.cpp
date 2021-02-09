@@ -148,7 +148,6 @@ int CurlSession::performQuery(const std::wstring& query, int level)
 
 			curl_easy_setopt(curl, CURLOPT_URL, cus);
 			curl_easy_setopt(curl, CURLOPT_POST, 1);
-			curl_easy_setopt(curl, CURLOPT_TIMEOUT, 15);
 			curl_easy_setopt(curl, CURLOPT_WRITEDATA, this);
 			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CB_CurlResponseParse);
 			//		curl_easy_setopt(curl, CURLOPT_HEADERDATA, this);
@@ -227,7 +226,7 @@ int CurlSession::performLogin()
 	setSessionCommonParms();
 	curl_easy_setopt(curl, CURLOPT_POST, 0);
 	curl_easy_setopt(curl, CURLOPT_URL, cus);
-	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 15);
+	//curl_easy_setopt(curl, CURLOPT_TIMEOUT, 15);
 	curl_easy_setopt(curl, CURLOPT_HEADERDATA, this);
 	curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, CB_CurlHeaderParse);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, this);

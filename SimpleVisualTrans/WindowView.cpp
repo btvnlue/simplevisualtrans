@@ -25,13 +25,12 @@
 #define WM_U_PAUSETORRENT WM_USER + 0x888
 #define WM_U_DELAYMESSAGE WM_USER + 0x999
 #define WM_U_REFRESHSESSION WM_USER + 0xAAA
-#define WM_U_REFRESHTORRENTDETAIL WM_USER + 0xBBB
 
 ATOM WindowView::viewClass = 0;
 std::map<HWND, WindowView*> WindowView::views;
 WCHAR WindowView::szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR WindowView::szWindowClass[MAX_LOADSTRING];            // the main window class name
-bool sortasc = true;
+extern bool sortasc;
 
 struct DELAYMESSAGE {
 	HWND hwnd;
@@ -118,210 +117,6 @@ int FormatDualByteView(wchar_t* wbuf, int bsz, unsigned __int64 size)
 	return 0;
 }
 
-//int FormatFloatNumber(wchar_t* wbuf, int bsz, double num)
-//{
-//	int inm = (int)num;
-//	int ifn = (int)((num - inm) * 10000 * (num<0?-1:1));
-//
-//	wsprintf(wbuf, L"%d.%04d", inm, ifn);
-//	return 0;
-//}
-//
-
-ListParmData* WindowView::GetListParmData(unsigned long idx)
-{
-	ListParmData* lpd = NULL;
-
-	if (listparms.size() > 0) {
-		lpd = *listparms.begin();
-		if (lpd->idle) {
-			lpd->idle = false;
-			listparms.pop_front();
-			listparms.push_back(lpd);
-		}
-		else {
-			lpd = NULL;
-		}
-	}
-
-	if (lpd == NULL) {
-		lpd = new ListParmData();
-		lpd->idle = false;
-		listparms.push_back(lpd);
-	}
-
-	return lpd;
-}
-
-int WindowView::UpdateTreeViewTorrentDetail(TorrentParmItems* items)
-{
-	wchar_t tbuf[1024];
-	TreeParmData* ntgip;
-	TorrentNode* trt = NULL;
-
-	TVITEM tvi = { 0 };
-	tvi.hItem = items->torrent;
-	tvi.mask = TVIF_PARAM;
-	BOOL btn = TreeView_GetItem(hTree, &tvi);
-	if (btn) {
-		if (tvi.lParam) {
-			TreeParmData* tip = (TreeParmData*)tvi.lParam;
-			if (tip->ItemType == TreeParmData::Torrent) {
-				trt = tip->node;
-			}
-		}
-	}
-
-	if (trt) {
-		if (items->id == NULL) {
-			TVINSERTSTRUCT tvi;
-
-			tvi = { 0 };
-			tbuf[0] = 0;
-			tvi.item.mask = TVIF_TEXT | TVIF_PARAM;
-			tvi.item.pszText = tbuf;
-			tvi.item.cchTextMax = 0;
-			ntgip = TreeItemParmDataHelper::CreateTreeItemParmData(TreeParmData::Attribute);
-			tvi.item.lParam = (LPARAM)ntgip;
-			ntgip->node = trt;
-			tvi.hParent = items->torrent;
-			items->size = TreeView_InsertItem(hTree, &tvi);
-			items->viewsize = TreeView_InsertItem(hTree, &tvi);
-			items->id = TreeView_InsertItem(hTree, &tvi);
-			items->tracker = TreeView_InsertItem(hTree, &tvi);;
-		}
-
-		if (trt->updatetick > items->readtick) {
-			ULARGE_INTEGER ltt;
-			ltt.QuadPart = GetTickCount64();
-			items->readtick = ltt.LowPart;
-
-			TVITEM tiu = { 0 };
-			tiu.mask = TVIF_TEXT;
-			tiu.hItem = items->id;
-			wsprintf(tbuf, L"ID: %d", trt->id);
-			tiu.pszText = tbuf;
-			tiu.cchTextMax = (int)wcslen(tbuf);
-			TreeView_SetItem(hTree, &tiu);
-
-			FormatViewSize(tbuf + 512, 512, trt->size);
-			wsprintf(tbuf, L"Size: %s", tbuf + 512);
-			tiu.cchTextMax = (int)wcslen(tbuf);
-			tiu.hItem = items->size;
-			TreeView_SetItem(hTree, &tiu);
-
-			FormatByteSize(tbuf + 512, 512, trt->size);
-			wsprintf(tbuf, L"Size (View): %s", tbuf + 512);
-			tiu.cchTextMax = (int)wcslen(tbuf);
-			tiu.hItem = items->viewsize;
-			TreeView_SetItem(hTree, &tiu);
-
-			wsprintf(tbuf, L"%s (%s)", trt->name.c_str(), tbuf + 512);
-			tiu.cchTextMax = (int)wcslen(tbuf);
-			tiu.hItem = items->torrent;
-			TreeView_SetItem(hTree, &tiu);
-
-			wsprintf(tbuf, L"Trackers (%d)", trt->trackerscount);
-			tiu.cchTextMax = (int)wcslen(tbuf);
-			tiu.hItem = items->tracker;
-			TreeView_SetItem(hTree, &tiu);
-
-
-			if (trt->trackerscount > 0) {
-				UpdateTreeViewTorrentDetailTrackers(items, trt);
-			}
-
-			if (items->file == NULL) {
-				if (trt->files.node) {
-					items->file = UpdateTreeViewTorrentDetailFiles(items->torrent, trt->files.node);
-				}
-			}
-		}
-	}
-	return 0;
-}
-
-HTREEITEM WindowView::UpdateTreeViewTorrentDetailTrackers(TorrentParmItems* items, TorrentNode* node)
-{
-	HTREEITEM hnt = NULL;
-	TVINSERTSTRUCT tvi = { 0 };
-	TVITEM tim = { 0 };
-	TreeParmData* tpd;
-
-	if (node->trackerscount > 0) {
-		if (items->tracker) {
-			if (node->trackerscount > 1) {
-				hnt = (HTREEITEM)::SendMessage(hTree, TVM_GETNEXTITEM, TVGN_CHILD, (LPARAM)items->tracker);
-				for (unsigned int ii = 0; ii < node->trackerscount; ii++) {
-					if (hnt == NULL) {
-						tvi.item.mask = TVIF_PARAM;
-						tvi.hParent = items->tracker;
-						tpd = TreeItemParmDataHelper::CreateTreeItemParmData(TreeParmData::Tracker);
-						tpd->node = node;
-						tvi.item.lParam = (LPARAM)tpd;
-						hnt = TreeView_InsertItem(hTree, &tvi);
-					}
-					if (hnt) {
-						tim.mask = TVIF_TEXT;
-						tim.hItem = hnt;
-						tim.pszText = (LPWSTR)node->trackers[ii].c_str();
-						tim.cchTextMax = (int)wcslen(tim.pszText);
-						TreeView_SetItem(hTree, &tim);
-					}
-					hnt = (HTREEITEM)::SendMessage(hTree, TVM_GETNEXTITEM, TVGN_NEXT, (LPARAM)hnt);
-				}
-			}
-			else {
-				tim.hItem = items->tracker;
-				tim.mask = TVIF_PARAM;
-				TreeView_GetItem(hTree, &tim);
-
-				TreeParmData* tpd = (TreeParmData*)tim.lParam;
-				tpd->ItemType = TreeParmData::Tracker;
-				tpd->node = node;
-
-				tim.mask = TVIF_TEXT;
-				tim.hItem = items->tracker;
-				tim.pszText = (LPWSTR)node->trackers[0].c_str();
-				tim.cchTextMax = (int)wcslen(tim.pszText);
-				TreeView_SetItem(hTree, &tim);
-			}
-		}
-	}
-
-	return hnt;
-}
-
-HTREEITEM WindowView::UpdateTreeViewTorrentDetailFiles(HTREEITEM hpnt, TorrentNodeFileNode* fnode)
-{
-	WCHAR wbuf[1024];
-	HTREEITEM hnt;
-	TVINSERTSTRUCT tvi = { 0 };
-	tvi.item.mask = TVIF_TEXT | TVIF_PARAM;
-	if (fnode->type == TorrentNodeFileNode::DIR) {
-		std::set<TorrentNodeFileNode*> fls;
-		TorrentNodeHelper::GetNodeFileSet(fnode, fls);
-		wsprintf(wbuf, L"%s (%d)", fnode->name.c_str(), fls.size());
-	}
-	else {
-		wsprintf(wbuf, L"%s", fnode->name.c_str());
-	}
-	tvi.item.pszText = (LPWSTR)wbuf;
-	tvi.item.cchTextMax = (int)wcslen(tvi.item.pszText);
-	tvi.hParent = hpnt;
-	TreeParmData* ntgip = TreeItemParmDataHelper::CreateTreeItemParmData(TreeParmData::File);
-	ntgip->file = fnode;
-	tvi.item.lParam = (LPARAM)ntgip;
-	hnt = TreeView_InsertItem(hTree, &tvi);
-	for (std::set<TorrentNodeFileNode*>::iterator itfn = fnode->sub.begin()
-		; itfn != fnode->sub.end()
-		; itfn++) {
-		UpdateTreeViewTorrentDetailFiles(hnt, *itfn);
-	}
-
-	return hnt;
-}
-
 WindowView* WindowView::CreateView(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
 {
 	UNREFERENCED_PARAMETER(hPrevInstance);
@@ -349,13 +144,10 @@ WindowView* WindowView::CreateView(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE 
 
 WindowView::WindowView()
 	: hInst(NULL)
-	, hList(NULL)
 	, hLog(NULL)
-	, hTree(NULL)
 	, hWnd(NULL)
 	, splitLog(NULL)
 	, splitTree(NULL)
-	, listContent(NONE)
 	, canRefresh(false)
 	, hToolImg(NULL)
 	, hMain(NULL)
@@ -366,16 +158,12 @@ WindowView::WindowView()
 	, splitStatus(NULL)
 	, delaytick(0)
 	, refreshcount(0)
-	, torrentsViewOrgs(NULL)
+	, listview(NULL)
+	, treeview(NULL)
 {
 	analyzer = new TransAnalyzer();
 
-	InitializeGradualPen();
-	InitializeTorrentDetailTitle();
-	
-	hbGreen = ::CreateSolidBrush(RGB(0xCF, 0xFF, 0xCF));
-	hbWhite = ::CreateSolidBrush(RGB(0xFF, 0xFF, 0xFF));
-	hbRed = ::CreateSolidBrush(RGB(0xFF, 0xCF, 0xCF));
+	//InitializeTorrentDetailTitle();
 }
 
 WindowView::~WindowView()
@@ -385,131 +173,15 @@ WindowView::~WindowView()
 
 	TreeItemParmDataHelper::ClearTreeItemParmData();
 
-	for (int ii = 0; ii < 256; ii++) {
-		DeleteObject(gradualpen[ii]);
+	if (listview) {
+		delete listview;
+		listview = NULL;
 	}
 
-	FreeTorrentDetailTitle();
-
-	if (torrentsViewOrgs) {
-		delete torrentsViewOrgs;
-		torrentsViewOrgs = NULL;
+	if (treeview) {
+		delete treeview;
+		treeview = NULL;
 	}
-
-	for (std::list<ListParmData*>::iterator itlp = listparms.begin()
-		; itlp != listparms.end()
-		; itlp++) {
-		delete* itlp;
-	}
-	listparms.clear();
-
-	DeleteObject(hbGreen);
-	DeleteObject(hbWhite);
-}
-
-void WindowView::InitializeTorrentDetailTitle()
-{
-	wchar_t whs[][32] = {
-		L"ID"
-		,L"Name"
-		,L"Size"
-		,L"Size (View)"
-		,L"Download Rate"
-		,L"Upload Rate"
-		,L"Status"
-		,L"Status(View)"
-		,L"Path"
-		,L"Download Time"
-		,L"Seed Time"
-		,L"Error"
-		,L"Downloaded Size"
-		,L"Uploaded Size"
-		,L"Corrupt Size"
-		,L"Ratio"
-		,L"Left Size"
-		,L"Available"
-		,L"Privacy"
-		,L"Finished"
-		,L"Stalled"
-		,L"Done Date"
-		,L"Activity Date"
-		,L"Start Date"
-		,L"Added Date"
-		,L"Piece Count"
-		,L"Piece Size"
-		,L"Piece Status"
-	};
-
-	wchar_t whn[][32] = {
-		L"Available Torrents"
-		, L"Total Download"
-		, L"Total Upload"
-		, L"Download Speed"
-		, L"Upload Speed"
-	};
-
-	int ays = sizeof(whs);
-	ays /= sizeof(wchar_t);
-	ays /= 32;
-	int sln;
-	torrentDetailTitles = (wchar_t**)malloc(ays * sizeof(wchar_t*));
-	if (torrentDetailTitles) {
-		for (int ii = 0; ii < ays; ii++) {
-			sln = wcsnlen_s(whs[ii], 32);
-			torrentDetailTitles[ii] = (wchar_t*)malloc((sln + 1) * sizeof(wchar_t*));
-			wcscpy_s(torrentDetailTitles[ii], sln + 1, whs[ii]);
-		}
-	}
-
-	ays = sizeof(whn);
-	ays /= sizeof(wchar_t);
-	ays /= 32;
-	torrentSessionTitles = (wchar_t**)malloc(ays * sizeof(wchar_t*));
-	if (torrentSessionTitles) {
-		for (int ii = 0; ii < ays; ii++) {
-			sln = wcsnlen_s(whn[ii], 32);
-			torrentSessionTitles[ii] = (wchar_t*)malloc((sln + 1) * sizeof(wchar_t*));
-			wcscpy_s(torrentSessionTitles[ii], sln + 1, whn[ii]);
-		}
-	}
-}
-
-void WindowView::InitializeGradualPen()
-{
-	for (unsigned int ii = 0; ii < 256; ii++) {
-		if (ii < 128) {
-			gradualpen[ii] = CreatePen(PS_SOLID, 1, RGB(0xFF, 0x7F + ii, 0x7F));
-		}
-		else {
-			gradualpen[ii] = CreatePen(PS_SOLID, 1, RGB(0xFF - (ii - 0x80), 0xFF, 0x7F));
-		}
-	}
-}
-
-int WindowView::FreeTorrentDetailTitle()
-{
-	int tsz = _msize(torrentDetailTitles);
-	tsz /= sizeof(wchar_t*);
-
-	if (tsz > 0) {
-		for (int ii = 0; ii < tsz; ii++) {
-			free(torrentDetailTitles[ii]);
-		}
-		free(torrentDetailTitles);
-		torrentDetailTitles = NULL;
-	}
-
-	tsz = _msize(torrentSessionTitles);
-	tsz /= sizeof(wchar_t*);
-
-	if (tsz > 0) {
-		for (int ii = 0; ii < tsz; ii++) {
-			free(torrentSessionTitles[ii]);
-		}
-		free(torrentSessionTitles);
-		torrentSessionTitles = NULL;
-	}
-	return 0;
 }
 
 int WindowView::ShowView()
@@ -577,76 +249,15 @@ LRESULT WindowView::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 	return lst;
 }
 
-int WindowView::GetListSelectedTorrents(std::set<TorrentNode*>& tts)
-{
-	int sit = -1;
-	bool keepseek = true;
-	LVITEM lvi = { 0 };
-	BOOL btn;
-	ListParmData* lpd;
-
-	if (listContent == LISTCONTENT::TORRENTLIST) {
-		while (keepseek) {
-			sit = ListView_GetNextItem(hList, sit, LVNI_SELECTED);
-			if (sit >= 0) {
-				lvi.iItem = sit;
-				lvi.mask = LVIF_PARAM;
-				btn = ListView_GetItem(hList, &lvi);
-				if (btn) {
-					lpd = (ListParmData*)lvi.lParam;
-					if (lpd->type == ListParmData::Node) {
-						tts.insert(lpd->node);
-					}
-				}
-			}
-			else {
-				keepseek = false;
-			}
-		}
-
-	}
-	return 0;
-}
-
-int WindowView::GetListSelectedFiles(std::set<TorrentNodeFileNode*>& tfs)
-{
-	int sit = -1;
-	bool keepseek = true;
-	LVITEM lvi = { 0 };
-	BOOL btn;
-	ListParmData* lpd;
-	if (listContent == LISTCONTENT::TORRENTFILE) {
-		while (keepseek) {
-			sit = ListView_GetNextItem(hList, sit, LVNI_SELECTED);
-			if (sit >= 0) {
-				lvi.iItem = sit;
-				lvi.mask = LVIF_PARAM;
-				btn = ListView_GetItem(hList, &lvi);
-				if (btn) {
-					lpd = (ListParmData*)lvi.lParam;
-					if (lpd->type == ListParmData::File) {
-						tfs.insert(lpd->file);
-					}
-				}
-			}
-			else {
-				keepseek = false;
-			}
-		}
-
-	}
-	return 0;
-}
-
 int WindowView::CopyTorrentsDetailOnView()
 {
 	TorrentNode* node;
 	std::set<TorrentNode*> dts;
 	std::wstringstream wss;
 
-	GetListSelectedTorrents(dts);
+	listview->GetListSelectedTorrents(dts);
 	if (dts.size() <= 0) {
-		GetTreeSelectedTorrents(dts);
+		treeview->GetTreeSelectedTorrents(dts);
 	}
 	for (std::set<TorrentNode*>::iterator itds = dts.begin()
 		; itds != dts.end()
@@ -676,9 +287,9 @@ int WindowView::CheckTorrentFilesOnView(BOOL check)
 {
 	std::set<TorrentNodeFileNode*> fns;
 	FileReqParm frp = { 0 };
-	GetListSelectedFiles(fns);
+	listview->GetListSelectedFiles(fns);
 	if (fns.size() <= 0) {
-		GetTreeSelectedFiles(fns);
+		treeview->GetTreeSelectedFiles(fns);
 	}
 	std::set<TorrentNode*> nodes;
 	for (std::set<TorrentNodeFileNode*>::iterator itfs = fns.begin()
@@ -712,9 +323,9 @@ int WindowView::PriorityTorrentFilesOnView(int prt)
 {
 	std::set<TorrentNodeFileNode*> fns;
 	FileReqParm frp = { 0 };
-	GetListSelectedFiles(fns);
+	listview->GetListSelectedFiles(fns);
 	if (fns.size() <= 0) {
-		GetTreeSelectedFiles(fns);
+		treeview->GetTreeSelectedFiles(fns);
 	}
 	std::set<TorrentNode*> nodes;
 	for (std::set<TorrentNodeFileNode*>::iterator itfs = fns.begin()
@@ -750,9 +361,9 @@ int WindowView::RemoveTorrentOnView(BOOL bContent)
 	std::set<TorrentNode*> dts;
 	struct DELAYMESSAGE* dmsg;
 
-	GetListSelectedTorrents(dts);
+	listview->GetListSelectedTorrents(dts);
 	if (dts.size() <= 0) {
-		GetTreeSelectedTorrents(dts);
+		treeview->GetTreeSelectedTorrents(dts);
 	}
 
 	std::wstringstream wss;
@@ -775,52 +386,6 @@ int WindowView::RemoveTorrentOnView(BOOL bContent)
 	return 0;
 }
 
-int WindowView::GetTreeSelectedFiles(std::set<TorrentNodeFileNode*>& trfs)
-{
-	HTREEITEM hti = TreeView_GetSelection(hTree);
-	std::wstringstream wss;
-
-	if (hti) {
-		TVITEM tvi = { 0 };
-		tvi.hItem = hti;
-		tvi.mask = TVIF_PARAM;
-		BOOL btn = TreeView_GetItem(hTree, &tvi);
-		if (btn) {
-			if (tvi.lParam) {
-				TreeParmData* tip = (TreeParmData*)tvi.lParam;
-				if (tip->ItemType == TreeParmData::File) {
-					TorrentNodeHelper::GetNodeFileSet(tip->file, trfs);
-				}
-			}
-		}
-	}
-	return 0;
-}
-
-int WindowView::GetTreeSelectedTorrents(std::set<TorrentNode*>& trts)
-{
-	HTREEITEM hti = TreeView_GetSelection(hTree);
-	std::wstringstream wss;
-
-	if (hti) {
-		TVITEM tvi = { 0 };
-		tvi.hItem = hti;
-		tvi.mask = TVIF_PARAM;
-		BOOL btn = TreeView_GetItem(hTree, &tvi);
-		if (btn) {
-			if (tvi.lParam) {
-				TreeParmData* tip = (TreeParmData*)tvi.lParam;
-				if (tip->ItemType == TreeParmData::Torrent) {
-					trts.insert(tip->node);
-				}
-				else if (tip->ItemType == TreeParmData::Group) {
-					tip->group->GetNodes(trts);
-				}
-			}
-		}
-	}
-	return 0;
-}
 
 void WindowView::RefreshTorrentNodeFiles(TorrentNode* node)
 {
@@ -831,9 +396,8 @@ void WindowView::RefreshTorrentNodeFiles(TorrentNode* node)
 	rpm.reqpieces = false;
 	int rtn = analyzer->PerformRemoteRefreshTorrent(rpm);
 	if (rtn == 0) {
-		TorrentParmItems* tpi = torrentsViewOrgs->GetNodeParmItems(node);
 		if (rpm.reqfiles) {
-			UpdateTreeViewTorrentDetail(tpi);
+			treeview->UpdateTreeViewTorrentDetailNode(node);
 		}
 		UpdateListViewTorrents();
 	}
@@ -848,19 +412,10 @@ void WindowView::RefreshTorrentNodeDetail(TorrentNode* node)
 	rpm.reqpieces = true;
 	int rtn = analyzer->PerformRemoteRefreshTorrent(rpm);
 	if (rtn == 0) {
-		TorrentParmItems* tpi = torrentsViewOrgs->GetNodeParmItems(node);
-		UpdateTreeViewTorrentDetail(tpi);
+		treeview->UpdateTreeViewTorrentDetailNode(node);
 		UpdateListViewTorrents();
 	}
 }
-
-//int WindowView::RefreshListTorrentDetail(ReqParm rpm)
-//{
-//	std::wstring wtn = analyzer->PerformRemoteRefreshTorrent(rpm);
-//	updateTorrentsView(&analyzer->groupRoot);
-//
-//	return 0;
-//}
 
 int WindowView::RefreshSession()
 {
@@ -875,9 +430,7 @@ int WindowView::UpdateViewSession(SessionInfo* ssn)
 {
 	wchar_t wbuf[1024];
 
-	if (listContent == LISTCONTENT::SESSIONINFO) {
-		UpdateListViewSession(ssn);
-	}
+	listview->UpdateListViewSession(ssn);
 	
 	FormatByteSize(wbuf + 512, 512, ssn->downloadspeed);
 	wsprintf(wbuf, L"Down: %s/s", wbuf + 512);
@@ -897,8 +450,8 @@ int WindowView::RefreshActiveTorrents()
 	int rtn = analyzer->PerformRemoteRefresh();
 
 	if (rtn == 0) {
-		UpdateViewTorrentGroup(analyzer->groupRoot);
-		UpdateViewRemovedTorrents();
+		treeview->UpdateViewTorrentGroup(analyzer->groupRoot);
+		treeview->UpdateViewRemovedTorrents();
 	}
 	else {
 		std::wstring wes = analyzer->GetErrorString(rtn);
@@ -911,94 +464,33 @@ int WindowView::RefreshActiveTorrents()
 
 void WindowView::RefreshViewNode()
 {
-	HTREEITEM hti = TreeView_GetSelection(hTree);
+	HTREEITEM hti = treeview->GetSelectedItem();
 	if (hti) {
-		TVITEM tvi = { 0 };
-		tvi.hItem = hti;
-		tvi.mask = TVIF_PARAM;
-		BOOL btn = TreeView_GetItem(hTree, &tvi);
-		if (btn) {
-			if (tvi.lParam) {
-				TreeParmData* tip = (TreeParmData*)tvi.lParam;
-				switch (tip->ItemType) {
-				case TreeParmData::Torrent:
-					if (listContent == TORRENTDETAIL) {
-						RefreshTorrentNodeDetail(tip->node);
-					}
-					break;
-				case TreeParmData::File:
-					if (listContent == TORRENTFILE) {
-						RefreshTorrentNodeFiles(tip->file->node);
-					}
-					break;
-				case TreeParmData::Group:
-					if (
-						(listContent == TORRENTGROUP) ||
-						(listContent == TORRENTLIST)
-						) {
-						UpdateListViewTorrents();
-					}
+		TreeParmData* tip = treeview->GetItemParm(hti);
+		if (tip) {
+			switch (tip->ItemType) {
+			case TreeParmData::Torrent:
+				if (listview->listContent == CViewListFrame::LISTCONTENT::TORRENTDETAIL) {
+					RefreshTorrentNodeDetail(tip->node);
+				}
+				break;
+			case TreeParmData::File:
+				if (listview->listContent == CViewListFrame::LISTCONTENT::TORRENTFILE) {
+					RefreshTorrentNodeFiles(tip->file->node);
+				}
+				break;
+			case TreeParmData::Group:
+				if (
+					(listview->listContent == CViewListFrame::LISTCONTENT::TORRENTGROUP) ||
+					(listview->listContent == CViewListFrame::LISTCONTENT::TORRENTLIST)
+					) {
+					UpdateListViewTorrents();
 				}
 			}
 		}
 	}
 }
 
-void WindowView::UpdateViewRemovedTorrents()
-{
-	int rid;
-	std::set<HTREEITEM> rts;
-	TorrentNode* trt;
-
-	if (analyzer->removed.size() > 0) {
-		HTREEITEM hsi = TreeView_GetSelection(hTree);
-		TVITEM tvi = { 0 };
-
-		for (std::list<int>::iterator itrm = analyzer->removed.begin()
-			; itrm != analyzer->removed.end()
-			; itrm++) {
-			rid = *itrm;
-			rts.clear();
-			trt = analyzer->GetTorrentNodeById(rid);
-			if (trt) {
-				torrentsViewOrgs->getTorrentItems(trt, rts);
-
-				for (std::set<HTREEITEM>::iterator itti = rts.begin()
-					; itti != rts.end()
-					; itti++) {
-					if (*itti == hsi) {
-						if (listContent == LISTCONTENT::TORRENTDETAIL) {
-							ClearColumns(hList);
-						}
-					}
-
-					tvi.hItem = *itti;
-					tvi.mask = TVIF_PARAM;
-					BOOL btn = TreeView_GetItem(hTree, &tvi);
-					if (btn) {
-						TreeParmData* tip = (TreeParmData*)tvi.lParam;
-						if (tip->ItemType == TreeParmData::Torrent) {
-							TorrentNode* node = tip->node;
-							LVFINDINFO lfi = { 0 };
-							lfi.flags = LVFI_PARAM;
-							lfi.lParam = (LPARAM)node;
-							int fii = ListView_FindItem(hList, -1, &lfi);
-							if (fii >= 0) {
-								ListView_DeleteItem(hList, fii);
-							}
-						}
-					}
-
-
-					TreeView_DeleteItem(hTree, *itti);
-				}
-			torrentsViewOrgs->removeItem(trt);
-			}
-			analyzer->RemoveTorrent(rid);
-		}
-		analyzer->removed.clear();
-	}
-}
 
 int WindowView::ProcContextMenuLog(int xx, int yy)
 {
@@ -1019,53 +511,6 @@ int WindowView::ProcContextMenuLog(int xx, int yy)
 	return 0;
 }
 
-
-int WindowView::ProcContextMenuList(int xx, int yy)
-{
-	POINT pnt = { xx, yy };
-	BOOL bst;
-	if ((listContent == LISTCONTENT::TORRENTLIST) 
-		|| (listContent == LISTCONTENT::TORRENTFILE)) {
-		HINSTANCE hinst = ::GetModuleHandle(NULL);
-		HMENU hcm = LoadMenu(hinst, MAKEINTRESOURCE(IDR_CONTEXTPOPS));
-		if (hcm) {
-			HMENU hsm = GetSubMenu(hcm, 1);
-			if (hsm) {
-				ClientToScreen(hList, &pnt);
-				bst = TrackPopupMenu(hsm, TPM_LEFTALIGN | TPM_LEFTBUTTON, pnt.x, pnt.y, 0, hWnd, NULL);
-				DestroyMenu(hsm);
-			}
-		}
-	}
-	return 0;
-}
-int WindowView::ProcContextMenuTree(int xx, int yy)
-{
-	RECT rct;
-	POINT pnt = { xx, yy };
-	HTREEITEM hti = TreeView_GetSelection(hTree);
-	if (hti) {
-		*(HTREEITEM*)& rct = hti;
-		BOOL bst = TreeView_GetItemRect(hTree, hti, &rct, TRUE);
-		//bst = ((*(HTREEITEM*)&rct = hti), (BOOL)SendMessage(hTree, TVM_GETITEMRECT, TRUE, (LPARAM)& rct));
-		if (bst) {
-			if (PtInRect(&rct, pnt)) {
-				HINSTANCE hinst = ::GetModuleHandle(NULL);
-				HMENU hcm = LoadMenu(hinst, MAKEINTRESOURCE(IDR_CONTEXTPOPS));
-				if (hcm) {
-					HMENU hsm = GetSubMenu(hcm, 0);
-					if (hsm) {
-						ClientToScreen(hTree, &pnt);
-						bst = TrackPopupMenu(hsm, TPM_LEFTALIGN | TPM_LEFTBUTTON, pnt.x, pnt.y, 0, hWnd, NULL);
-						DestroyMenu(hsm);
-					}
-				}
-			}
-		}
-	}
-	return 0;
-}
-
 int WindowView::ProcContextMenu(int xx, int yy)
 {
 	POINT pnt = { xx, yy };
@@ -1076,19 +521,19 @@ int WindowView::ProcContextMenu(int xx, int yy)
 
 	if (rtn > 0) {
 		wpt = pnt;
-		::ScreenToClient(hTree, &wpt);
-		::GetClientRect(hTree, &rct);
+		::ScreenToClient(*treeview, &wpt);
+		::GetClientRect(*treeview, &rct);
 		if (PtInRect(&rct, wpt)) {
-			rtn = ProcContextMenuTree(wpt.x, wpt.y);
+			rtn = treeview->ProcContextMenuTree(wpt.x, wpt.y);
 		}
 	}
 	
 	if (rtn > 0) {
 		wpt = pnt;
-		::ScreenToClient(hList, &wpt);
-		::GetClientRect(hList, &rct);
+		::ScreenToClient(*listview, &wpt);
+		::GetClientRect(*listview, &rct);
 		if (PtInRect(&rct, wpt)) {
-			rtn = ProcContextMenuList(wpt.x, wpt.y);
+			rtn = listview->ProcContextMenuList(wpt.x, wpt.y);
 		}
 	}
 
@@ -1153,9 +598,9 @@ int WindowView::PauseTorrentsOnView(BOOL bresume)
 	std::set<TorrentNode*> dts;
 	std::wstringstream wss;
 
-	GetListSelectedTorrents(dts);
+	listview->GetListSelectedTorrents(dts);
 	if (dts.size() <= 0) {
-		GetTreeSelectedTorrents(dts);
+		treeview->GetTreeSelectedTorrents(dts);
 	}
 	for (std::set<TorrentNode*>::iterator itds = dts.begin()
 		; itds != dts.end()
@@ -1179,88 +624,15 @@ int WindowView::PauseTorrentsOnView(BOOL bresume)
 	return 0;
 }
 
-//int WindowView::PauseTreeNode(BOOL bresume)
-//{
-//	HTREEITEM htv = TreeView_GetSelection(hTree);
-//	if (htv) {
-//		TVITEM tvi = { 0 };
-//		tvi.hItem = htv;
-//		tvi.mask = TVIF_PARAM;
-//		BOOL btn = TreeView_GetItem(hTree, &tvi);
-//		if (btn) {
-//			if (tvi.lParam) {
-//				TreeItemParmData* tip = (TreeItemParmData*)tvi.lParam;
-//				if (tip->ItemType == TreeItemParmData::Group) {
-//					std::wstring tds;
-//					std::wstringstream wss;
-//					for (std::map<unsigned long, TorrentNode*>::iterator itgp = tip->group->torrents.begin()
-//						; itgp != tip->group->torrents.end()
-//						; itgp++) {
-//						::PostMessage(hWnd, WM_U_PAUSETORRENT, itgp->first, bresume);
-//					}
-//				}
-//				else if (tip->ItemType == TreeItemParmData::Torrent) {
-//					TorrentNode* tnd = tip->node;
-//					::PostMessage(hWnd, WM_U_PAUSETORRENT, tnd->id, bresume);
-//				}
-//			}
-//		}
-//	}
-//
-//	return 0;
-//}
-
-//int WindowView::CopyTreeNodeDetail()
-//{
-//	HTREEITEM htv = TreeView_GetSelection(hTree);
-//	if (htv) {
-//		TVITEM tvi = { 0 };
-//		tvi.hItem = htv;
-//		tvi.mask = TVIF_PARAM;
-//		BOOL btn = TreeView_GetItem(hTree, &tvi);
-//		if (btn) {
-//			if (tvi.lParam) {
-//				TreeItemParmData* tip = (TreeItemParmData*)tvi.lParam;
-//				if (tip->ItemType == TreeItemParmData::Group) {
-//					std::wstring tds;
-//					std::wstringstream wss;
-//					for (std::map<unsigned long, TorrentNode*>::iterator itgp = tip->group->torrents.begin()
-//						; itgp != tip->group->torrents.end()
-//						; itgp++) {
-//						tds = TorrentNodeHelper::DumpTorrentNode(itgp->second);
-//						wss << tds << L'\r' << std::endl;
-//					}
-//					if (wss.str().length() > 0) {
-//						SendStringClipboard(wss.str());
-//						wss.str(std::wstring());
-//						wss << L"Copy [" << tip->group->torrents.size() << L"] torrent(s) to clipboard";
-//						ViewLog(wss.str().c_str());
-//					}
-//				}
-//				else if (tip->ItemType == TreeItemParmData::Torrent) {
-//					TorrentNode* tnd = tip->node;
-//					std::wstring wsr = TorrentNodeHelper::DumpTorrentNode(tnd);
-//					SendStringClipboard(wsr);
-//					std::wstringstream wss;
-//					wss << L"Copy torrent [" << tip->node->name << L"] to clipboard";
-//					ViewLog(wss.str().c_str());
-//				}
-//			}
-//		}
-//	}
-//
-//	return 0;
-//}
-
 int WindowView::CopyTreeNodeName()
 {
 	TorrentNode* node;
 	std::set<TorrentNode*> dts;
 	std::wstringstream wss;
 
-	GetListSelectedTorrents(dts);
+	listview->GetListSelectedTorrents(dts);
 	if (dts.size() <= 0) {
-		GetTreeSelectedTorrents(dts);
+		treeview->GetTreeSelectedTorrents(dts);
 	}
 	for (std::set<TorrentNode*>::iterator itds = dts.begin()
 		; itds != dts.end()
@@ -1284,19 +656,6 @@ int WindowView::CopyTreeNodeName()
 		}
 	}
 
-	return 0;
-}
-
-int WindowView::SelectTreeParentNode(HWND htree)
-{
-	HTREEITEM hst = TreeView_GetSelection(htree);
-	if (hst) {
-		hst = TreeView_GetNextItem(htree, hst, TVGN_PARENT);
-		if (hst) {
-			TreeView_Select(htree, hst, TVGN_CARET);
-			TreeView_Select(htree, hst, TVGN_FIRSTVISIBLE);
-		}
-	}
 	return 0;
 }
 
@@ -1336,10 +695,10 @@ LRESULT WindowView::WndProcInstance(HWND hWnd, UINT message, WPARAM wParam, LPAR
 		case IDM_SELECTNODEINTREE:
 		{
 			std::set<TorrentNode*> tns;
-			GetListSelectedTorrents(tns);
+			listview->GetListSelectedTorrents(tns);
 			if (tns.size() > 0) {
-				TreeViewSelectItem(*tns.begin());
-				PostMessage(hTree, WM_SETFOCUS, NULL, NULL);
+				treeview->TreeViewSelectItem(*tns.begin());
+				PostMessage(*treeview, WM_SETFOCUS, NULL, NULL);
 			}
 		}
 			break;
@@ -1386,7 +745,7 @@ LRESULT WindowView::WndProcInstance(HWND hWnd, UINT message, WPARAM wParam, LPAR
 			panelState->SwitchWindow(hNew);
 			break;
 		case IDM_SELECTPARENT:
-			SelectTreeParentNode(hTree);
+			treeview->SelectTreeParentNode();
 			break;
 		case IDM_DUMPLOGCONTENT:
 			DumpLogToClipboard(hLog);
@@ -1453,6 +812,12 @@ LRESULT WindowView::WndProcInstance(HWND hWnd, UINT message, WPARAM wParam, LPAR
 		RefreshSession();
 		canRefresh = true;
 		break;
+	case WM_U_DELETELISTNODE:
+		listview->DeleteNodeItem((TorrentNode*)wParam);
+		break;
+	case WM_U_CLEARLISTVIEW:
+		listview->ClearColumns();
+		break;
 	case WM_U_ADDNEWRESOURCE:
 	{
 		BOOL bit = (BOOL)lParam; //'false' as multi-lines analysis
@@ -1503,6 +868,12 @@ LRESULT WindowView::WndProcInstance(HWND hWnd, UINT message, WPARAM wParam, LPAR
 	case WM_U_STARTSESSION:
 		StartAnalysis();
 	break;
+	case WM_U_TREESELECTNODE:
+		treeview->TreeViewSelectItem((TorrentNode*)wParam);
+	break;
+	case WM_U_TREESELECTGROUP:
+		treeview->TreeViewSelectItem((TorrentGroup*)wParam);
+	break;
 	case WM_U_PAUSETORRENT:
 	{
 		int tid = (int)wParam;
@@ -1514,6 +885,18 @@ LRESULT WindowView::WndProcInstance(HWND hWnd, UINT message, WPARAM wParam, LPAR
 		ViewLog(wbuf);
 	}
 	break;
+	case WM_U_UPDATETORRENTGROUP:
+		listview->UpdateListViewTorrentGroup((TorrentGroup*)wParam);
+		break;
+	case WM_U_UPDATETORRENTNODEDETAIL:
+		listview->UpdateListViewTorrentDetail((TorrentNode*)wParam);
+		break;
+	case WM_U_UPDATESESSION:
+		listview->ListUpdateSession((SessionInfo*)wParam);
+		break;
+	case WM_U_UPDATETORRENTNODEFILE:
+		listview->ListUpdateFiles((TorrentNodeFileNode*)wParam);
+		break;
 	case WM_NOTIFY:
 		lrt = ProcNotify(hWnd, message, wParam, lParam);
 		break;
@@ -1563,11 +946,15 @@ LRESULT WindowView::ProcNotify(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 	LRESULT lrst = 0;
 	LPNMHDR pnmh = (LPNMHDR)lParam;
 
-	if (pnmh->hwndFrom == hTree) {
-		lrst = ProcNotifyTree(hWnd, message, wParam, lParam);
+	if (treeview) {
+		if (pnmh->hwndFrom == *treeview) {
+			lrst = treeview->ProcNotifyTree(hWnd, message, wParam, lParam);
+		}
 	}
-	if (pnmh->hwndFrom == hList) {
-		lrst = ProcNotifyList(hWnd, message, wParam, lParam);
+	if (listview) {
+		if (pnmh->hwndFrom == *listview) {
+			lrst = listview->ProcNotifyList(hWnd, message, wParam, lParam);
+		}
 	}
 
 	return lrst;
@@ -1578,50 +965,6 @@ int WindowView::InitializeStatusBar(HWND hsts)
 	int pars[4] = { 100, 200, 300, -1 };
 	::SendMessage(hsts, SB_SETPARTS, 4, (LPARAM) &pars);
 
-	return 0;
-}
-
-int WindowView::CreateListColumnsSession(HWND hlist)
-{
-	struct ColDef cols[] = {
-	{ L"Session", 150 }
-	, { L"Value", 200 }
-	, {0}
-	};
-
-	CreateListColumns(hlist, cols);
-	listContent = LISTCONTENT::SESSIONINFO;
-	return 0;
-}
-
-int WindowView::CreateListColumnsFiles(HWND hlist)
-{
-	struct ColDef cols[] = {
-	{ L"Id", 50}
-	, { L"In", 50 }
-	, { L"Priority", 50}
-	, { L"Path", 150}
-	, { L"File", 150 }
-	, { L"Size", 200 }
-	, { L"Downloaded Size", 200 }
-	, {0}
-	};
-
-	CreateListColumns(hlist, cols);
-	listContent = LISTCONTENT::TORRENTFILE;
-	return 0;
-}
-
-int WindowView::CreateListColumnsTorrent(HWND hlist)
-{
-	struct ColDef cols[] = {
-	{ L"Parameter", 150 }
-	, { L"Value", 200 }
-	, {0}
-	};
-
-	CreateListColumns(hlist, cols);
-	listContent = TORRENTDETAIL;
 	return 0;
 }
 
@@ -1685,964 +1028,6 @@ int FormatIntegerDate(wchar_t* wbuf, size_t bsz, long mtt)
 		wsprintf(wbuf, L"");
 	}
 	return 0;
-}
-
-int WindowView::UpdateListViewTorrentFiles(TorrentNodeFileNode* files)
-{
-	if (listContent == LISTCONTENT::TORRENTFILE) {
-		TorrentNodeFileNode* cfl;
-		std::set<TorrentNodeFileNode*> fst;
-		LVFINDINFO lfi = { 0 };
-		LVITEM lvi = { 0 };
-		std::wstring wst;
-		ULARGE_INTEGER llt;
-		ListParmData* lpd;
-
-		TorrentNodeHelper::GetNodeFileSet(files, fst);
-		int lvc = ListView_GetItemCount(hList);
-		for (int ii = 0; ii < lvc; ii++) {
-			lvi.mask = LVIF_PARAM;
-			lvi.iItem = ii;
-			ListView_GetItem(hList, &lvi);
-
-			lpd = (ListParmData*)lvi.lParam;
-			if (lpd->type == ListParmData::File) {
-				cfl = lpd->file;
-				fst.erase(cfl);
-				if (cfl->updatetick > cfl->readtick) {
-					llt.QuadPart = GetTickCount64();
-					cfl->readtick = llt.LowPart;
-					UpdateListViewTorrentFileDetail(hList, ii, cfl);
-				}
-			}
-		}
-		for (std::set<TorrentNodeFileNode*>::iterator itfn = fst.begin()
-			; itfn != fst.end()
-			; itfn++ ) {
-			cfl = *itfn;
-			if (cfl->file) {
-				lvi.mask = LVIF_TEXT;
-				lvi.pszText = (LPWSTR)L"";
-				lvi.cchTextMax = 0;
-				lvi.iItem = lvc + 1;
-				lvi.lParam = (LPARAM)cfl;
-				lvi.iSubItem = 0;
-				lvc = ListView_InsertItem(hList, &lvi);
-
-				lvi.iItem = lvc;
-				lvi.mask = LVIF_PARAM;
-				lpd = GetListParmData(lvc);
-				lpd->type = ListParmData::File;
-				lpd->file = cfl;
-				lvi.lParam = (LPARAM)lpd;
-				ListView_SetItem(hList, &lvi);
-				UpdateListViewTorrentFileDetail(hList, lvc, cfl);
-			}
-		}
-	}
-	return 0;
-}
-
-int WindowView::UpdateListViewTorrentFileDetail(HWND hlist, int fii, TorrentNodeFileNode* cfl)
-{
-	WCHAR wbuf[128];
-	LVITEM lvi;
-
-	lvi.mask = LVIF_TEXT;
-	wsprintf(wbuf, L"%d", cfl->id);
-	lvi.pszText = wbuf;
-	lvi.cchTextMax = (int)wcslen(lvi.pszText);
-	lvi.iItem = fii;
-	lvi.iSubItem = 0;
-	ListView_SetItem(hlist, &lvi);
-
-	lvi.mask = LVIF_TEXT;
-	lvi.iItem = fii;
-	lvi.iSubItem = 1;
-	lvi.pszText = (LPWSTR)(cfl->check?L"Yes":L"No");
-	lvi.cchTextMax = (int)wcslen(lvi.pszText);
-	ListView_SetItem(hlist, &lvi);
-
-	lvi.mask = LVIF_TEXT;
-	lvi.iItem = fii;
-	lvi.iSubItem = 2;
-	wsprintf(wbuf, L"%d", cfl->priority);
-	lvi.pszText = (LPWSTR)wbuf;
-	lvi.cchTextMax = (int)wcslen(lvi.pszText);
-	ListView_SetItem(hlist, &lvi);
-
-	lvi.mask = LVIF_TEXT;
-	lvi.iItem = fii;
-	lvi.iSubItem = 3;
-	lvi.pszText = (LPWSTR)cfl->path.c_str();
-	lvi.cchTextMax = (int)wcslen(lvi.pszText);
-	ListView_SetItem(hlist, &lvi);
-
-	lvi.mask = LVIF_TEXT;
-	lvi.iItem = fii;
-	lvi.iSubItem = 4;
-	lvi.pszText = (LPWSTR)cfl->name.c_str();
-	lvi.cchTextMax = (int)wcslen(lvi.pszText);
-	ListView_SetItem(hlist, &lvi);
-
-	lvi.mask = LVIF_TEXT;
-	lvi.iItem = fii;
-	lvi.iSubItem = 5;
-	FormatViewSize(wbuf, 128, cfl->file->size);
-	lvi.pszText = wbuf;
-	lvi.cchTextMax = (int)wcslen(lvi.pszText);
-	ListView_SetItem(hlist, &lvi);
-
-	lvi.mask = LVIF_TEXT;
-	lvi.iItem = fii;
-	lvi.iSubItem = 6;
-	FormatViewSize(wbuf+32, 32, cfl->done);
-	double dsp = cfl->file->size > 0 ? ((double)cfl->done) / cfl->file->size : 0;
-	FormatViewDouble(wbuf + 64, 64, dsp * 100);
-	wsprintf(wbuf, L"%s (%s%%)", wbuf + 32, wbuf + 64);
-	lvi.pszText = wbuf;
-	lvi.cchTextMax = (int)wcslen(lvi.pszText);
-	ListView_SetItem(hlist, &lvi);
-
-	return 0;
-}
-
-int WindowView::UpdateListViewSession(SessionInfo* ssn)
-{
-	wchar_t wbuf[128];
-	int iti = 0;
-
-	wsprintf(wbuf, L"%d", ssn->torrentcount);
-	ListView_SetItemText(hList, iti, 1, wbuf);
-	iti++;
-
-	FormatByteSize(wbuf, 128, ssn->downloaded);
-	ListView_SetItemText(hList, iti, 1, wbuf);
-	iti++;
-
-	FormatByteSize(wbuf, 128, ssn->uploaded);
-	ListView_SetItemText(hList, iti, 1, wbuf);
-	iti++;
-
-	FormatByteSize(wbuf+64, 64, ssn->downloadspeed);
-	wsprintf(wbuf, L"%s/s", wbuf + 64);
-	ListView_SetItemText(hList, iti, 1, wbuf);
-	iti++;
-
-	FormatByteSize(wbuf+64, 64, ssn->uploadspeed);
-	wsprintf(wbuf, L"%s/s", wbuf + 64);
-	ListView_SetItemText(hList, iti, 1, wbuf);
-	iti++;
-
-	return 0;
-}
-
-int WindowView::UpdateListViewTorrentDetailData(TorrentNode* node)
-{
-	wchar_t wbuf[128];
-	int iti = 0;
-
-	if (node->updatetick > node->readtick) {
-		ULARGE_INTEGER lit;
-		lit.QuadPart = GetTickCount64();
-		node->readtick = lit.LowPart;
-
-		wsprintf(wbuf, L"%d", node->id);
-		ListView_SetItemText(hList, iti, 1, wbuf);
-		iti++;
-		ListView_SetItemText(hList, iti, 1, (LPWSTR)node->name.c_str());
-		iti++;
-		FormatViewSize(wbuf, 128, node->size);
-		ListView_SetItemText(hList, iti, 1, wbuf);
-		iti++;
-		FormatByteSize(wbuf, 128, node->size);
-		ListView_SetItemText(hList, iti, 1, wbuf);
-		iti++;
-		FormatByteSize(wbuf + 64, 64, node->downspeed);
-		wsprintf(wbuf, L"%s/s", wbuf + 64);
-		ListView_SetItemText(hList, iti, 1, wbuf);
-		iti++;
-		FormatByteSize(wbuf + 64, 64, node->upspeed);
-		wsprintf(wbuf, L"%s/s", wbuf + 64);
-		ListView_SetItemText(hList, iti, 1, wbuf);
-		iti++;
-		wsprintf(wbuf, L"%d", node->status);
-		ListView_SetItemText(hList, iti, 1, wbuf);
-		iti++;
-		FormatViewStatus(wbuf, 128, node->status);
-		ListView_SetItemText(hList, iti, 1, wbuf);
-		iti++;
-		ListView_SetItemText(hList, iti, 1, (LPWSTR)node->path.c_str());
-		iti++;
-		FormatTimeSeconds(wbuf + 64, 64, node->downloadTime);
-		wsprintf(wbuf, L"%s (%d s)", wbuf + 64, node->downloadTime);
-		ListView_SetItemText(hList, iti, 1, wbuf);
-		iti++;
-		FormatTimeSeconds(wbuf + 64, 64, node->seedTime);
-		wsprintf(wbuf, L"%s (%d s)", wbuf + 64, node->seedTime);
-		ListView_SetItemText(hList, iti, 1, wbuf);
-		iti++;
-		ListView_SetItemText(hList, iti, 1, (LPWSTR)node->error.c_str());
-		iti++;
-		FormatDualByteView(wbuf, 128, node->downloaded);
-		ListView_SetItemText(hList, iti, 1, wbuf);
-		iti++;
-		FormatDualByteView(wbuf, 128, node->uploaded);
-		ListView_SetItemText(hList, iti, 1, wbuf);
-		iti++;
-		FormatByteSize(wbuf, 128, node->corrupt);
-		ListView_SetItemText(hList, iti, 1, wbuf);
-		iti++;
-		FormatViewDouble(wbuf, 128, node->ratio);
-		ListView_SetItemText(hList, iti, 1, wbuf);
-		iti++;
-		FormatViewSize(wbuf + 64, 64, node->leftsize);
-		double dlp = node->size > 0 ? ((double)node->leftsize) / node->size * 100 : 0;
-		FormatViewDouble(wbuf + 96, 32, dlp);
-		wsprintf(wbuf, L"%s (%s%%)", wbuf + 64, wbuf + 96);
-		ListView_SetItemText(hList, iti, 1, wbuf);
-		iti++;
-		double dpc = node->leftsize > 0 ? ((double)node->desired) / node->leftsize : 0;
-		FormatViewSize(wbuf + 32, 32, node->desired);
-		FormatViewDouble(wbuf + 64, 64, dpc * 100);
-		wsprintf(wbuf, L"%s (%s%%)", wbuf + 32, wbuf + 64);
-		ListView_SetItemText(hList, iti, 1, wbuf);
-		iti++;
-		wsprintf(wbuf, L"%s", node->privacy ? L"Yes" : L"No");
-		ListView_SetItemText(hList, iti, 1, wbuf);
-		iti++;
-		wsprintf(wbuf, L"%s", node->done ? L"Yes" : L"No");
-		ListView_SetItemText(hList, iti, 1, wbuf);
-		iti++;
-		wsprintf(wbuf, L"%s", node->stalled ? L"Yes" : L"No");
-		ListView_SetItemText(hList, iti, 1, wbuf);
-		iti++;
-
-		FormatIntegerDate(wbuf, 128, node->donedate);
-		ListView_SetItemText(hList, iti, 1, wbuf);
-		iti++;
-
-		FormatIntegerDate(wbuf, 128, node->activedate);
-		ListView_SetItemText(hList, iti, 1, wbuf);
-		iti++;
-
-		FormatIntegerDate(wbuf, 128, node->startdate);
-		ListView_SetItemText(hList, iti, 1, wbuf);
-		iti++;
-
-		FormatIntegerDate(wbuf, 128, node->adddate);
-		ListView_SetItemText(hList, iti, 1, wbuf);
-		iti++;
-
-		wsprintf(wbuf, L"%d", node->piececount);
-		ListView_SetItemText(hList, iti, 1, wbuf);
-		iti++;
-
-		FormatDualByteView(wbuf, 128, node->piecesize);
-		ListView_SetItemText(hList, iti, 1, wbuf);
-		iti++;
-
-		ListView_SetItemText(hList, iti, 1, (LPWSTR)node->pieces.c_str());
-		iti++;
-
-		if (node->trackerscount == 1) {
-			wsprintf(wbuf, L"%s", node->trackers[0].c_str());
-		}
-		else {
-			FormatNormalNumber(wbuf, 128, node->trackerscount);
-		}
-		ListView_SetItemText(hList, iti, 1, wbuf);
-		iti++;
-	}
-
-	return 0;
-}
-
-int WindowView::ListUpdateFiles(TorrentNodeFileNode* files)
-{
-	ClearColumns(hList);
-	CreateListColumnsFiles(hList);
-
-	UpdateListViewTorrentFiles(files);
-
-	return 0;
-}
-
-int WindowView::ListUpdateSession(SessionInfo* ssn)
-{
-	ClearColumns(hList);
-	CreateListColumnsSession(hList);
-
-	ListUpdateSessionTitle(ssn);
-	UpdateListViewSession(ssn);
-
-	return 0;
-}
-
-int WindowView::UpdateListViewTorrentDetail(TorrentNode* node)
-{
-	ClearColumns(hList);
-	CreateListColumnsTorrent(hList);
-
-	ListUpdateTorrentTitle(node);
-	node->readtick = 0;
-	UpdateListViewTorrentDetailData(node);
-
-	::SendMessage(hList, LVM_SETCOLUMNWIDTH, 0, LVSCW_AUTOSIZE_USEHEADER);
-	::SendMessage(hList, LVM_SETCOLUMNWIDTH, 1, LVSCW_AUTOSIZE_USEHEADER);
-
-	return 0;
-}
-
-void WindowView::ListUpdateTorrentTitle(TorrentNode* node)
-{
-	LVITEM lvi = { 0 };
-	int iti = 0;
-	ListParmData* lpd;
-
-	int tts = _msize(torrentDetailTitles) / sizeof(wchar_t*);
-
-	for (int ii = 0; ii < tts; ii++) {
-		lvi.mask = LVIF_TEXT;
-		lvi.pszText = (LPWSTR)torrentDetailTitles[ii];
-		lvi.cchTextMax = (int)wcslen(lvi.pszText);
-		lvi.iItem = iti;
-		iti = ListView_InsertItem(hList, &lvi);
-
-		lvi.iItem = iti;
-		lvi.mask = LVIF_PARAM;
-		lpd = GetListParmData(iti);
-		lpd->type = ListParmData::Parameter;
-		lpd->node = node;
-		lvi.lParam = (LPARAM)lpd;
-		ListView_SetItem(hList, &lvi);
-
-		iti++;
-	}
-
-	lvi.mask = LVIF_TEXT;
-	lvi.pszText = (LPWSTR)L"Tracker";
-	lvi.cchTextMax = (int)wcslen(lvi.pszText);
-	lvi.iItem = iti;
-	iti = ListView_InsertItem(hList, &lvi);
-
-	lvi.iItem = iti;
-	lvi.mask = LVIF_PARAM;
-	lpd = GetListParmData(iti);
-	lpd->type = ListParmData::Tracker;
-	lpd->node = node;
-	lvi.lParam = (LPARAM)lpd;
-	ListView_SetItem(hList, &lvi);
-	iti++;
-}
-
-void WindowView::ListUpdateSessionTitle(SessionInfo* ssn)
-{
-	LVITEM lvi = { 0 };
-	int iti = 0;
-	ListParmData* lpd;
-
-
-	int tts = _msize(torrentSessionTitles) / sizeof(wchar_t*);
-
-	for (int ii = 0; ii < tts; ii++) {
-		lvi.mask = LVIF_TEXT;
-		lvi.pszText = (LPWSTR)torrentSessionTitles[ii];
-		lvi.cchTextMax = (int)wcslen(lvi.pszText);
-		lvi.iItem = iti;
-		iti = ListView_InsertItem(hList, &lvi);
-
-		lvi.iItem = iti;
-		lvi.mask = LVIF_PARAM;
-		lpd = GetListParmData(iti);
-		lpd->type = ListParmData::Parameter;
-		lpd->session = ssn;
-		lvi.lParam = (LPARAM)lpd;
-		ListView_SetItem(hList, &lvi);
-
-		iti++;
-	}
-}
-
-#define INTCOMP(I1,I2) (I1)<(I2)?-1:((I1)>(I2)?1:0)
-
-int CALLBACK LVComp_Files(LPARAM lp1, LPARAM lp2, LPARAM lpsort)
-{
-	int icr = 0;
-	ListParmData* lpd1 = (ListParmData*)lp1;
-	ListParmData* lpd2 = (ListParmData*)lp2;
-
-	TorrentNodeFileNode* nd1 = lpd1->file;
-	TorrentNodeFileNode* nd2 = lpd2->file;
-	long iitem = (long)lpsort;
-
-	if (iitem == 0) {
-		icr = INTCOMP(nd1->id, nd2->id);
-	}
-	else if (iitem == 3) {
-		icr = nd1->path.compare(nd2->path);
-	}
-	else if (iitem == 4) {
-		icr = nd1->name.compare(nd2->name);
-	}
-	else if (iitem == 5) {
-		icr = INTCOMP(nd1->file->size, nd2->file->size);
-	}
-	else if (iitem == 6) {
-		icr = INTCOMP(nd1->file->size>0?((double)nd1->file->donesize)/nd1->file->size:0, nd2->file->size>0?((double)nd2->file->donesize)/nd2->file->size:0);
-	}
-
-	icr *= sortasc ? 1 : -1;
-	return icr;
-}
-
-int CALLBACK LVComp_Nodes(LPARAM lp1, LPARAM lp2, LPARAM lpsort)
-{
-	ListParmData* lpd1 = (ListParmData*)lp1;
-	ListParmData* lpd2 = (ListParmData*)lp2;
-
-	TorrentNode* nd1 = lpd1->node;
-	TorrentNode* nd2 = lpd2->node;
-	long iitem = (long)lpsort;
-
-	int icr = 0;
-
-	if (iitem == 0) {
-		icr = INTCOMP(nd1->id, nd2->id);
-	}
-	else if (iitem == 1) {
-		icr = nd1->name.compare(nd2->name);
-	}
-	else if ((iitem == 2) || (iitem == 3)) {
-		icr = INTCOMP(nd1->size, nd2->size);
-	}
-	else if (iitem == 4) {
-		if (nd1->trackerscount > 0) {
-			if (nd2->trackerscount > 0) {
-				icr = nd1->trackers[0].compare(nd2->trackers[0]);
-			}
-			else {
-				icr = 1;
-			}
-		}
-		else {
-			if (nd2->trackerscount > 0) {
-				icr = -1;
-			}
-			else {
-				icr = 0;
-			}
-		}
-	}
-	else if (iitem == 5) {
-		icr = INTCOMP(nd1->downspeed, nd2->downspeed);
-	}
-	else if (iitem == 6) {
-		icr = INTCOMP(nd1->upspeed, nd2->upspeed);
-	}
-	else if (iitem == 7) {
-		icr = INTCOMP(nd1->status, nd2->status);
-	}
-	else if (iitem == 8) {
-		icr = INTCOMP(nd1->ratio, nd2->ratio);
-	}
-
-	icr *= sortasc ? 1 : -1;
-	return icr;
-}
-
-int CALLBACK LVComp_Group(LPARAM lp1, LPARAM lp2, LPARAM lpsort)
-{
-	ListParmData* lpd1 = (ListParmData*)lp1;
-	ListParmData* lpd2 = (ListParmData*)lp2;
-	
-	TorrentGroup* nd1 = lpd1->group;
-	TorrentGroup* nd2 = lpd2->group;
-	long iitem = (long)lpsort;
-	int icr = 0;
-
-	switch (iitem) {
-	case 0:
-		icr = nd1->name.compare(nd2->name);
-		break;
-	case 1:
-	case 2:
-		icr = nd1->size > nd2->size ? 1 : (nd1->size < nd2->size ? -1 : 0);
-		break;
-	case 3:
-	{
-		size_t nd1s = nd1->torrents.size();
-		size_t nd2s = nd2->torrents.size();
-
-		icr = nd1s > nd2s ? 1 : (nd1s < nd2s ? -1 : 0);
-	}
-	break;
-	case 4:
-		icr = nd1->downspeed > nd2->downspeed ? 1 : (nd1->downspeed < nd2->downspeed ? -1 : 0);
-		break;
-	case 5:
-		icr = nd1->upspeed > nd2->upspeed ? 1 : (nd1->upspeed < nd2->upspeed ? -1 : 0);
-		break;
-	default:
-	break;
-	}
-
-	icr *= sortasc ? 1 : -1;
-
-	return icr;
-}
-
-int WindowView::MakeListParmIdle(ListParmData* lpd)
-{
-	lpd->idle = true;
-	listparms.remove(lpd);
-	listparms.push_front(lpd);
-	return 0;
-}
-
-LRESULT WindowView::ProcNotifyList(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
-{
-	LRESULT lrt = 0;
-	NMLISTVIEW* plist = (NMLISTVIEW*)lParam;
-
-	switch (plist->hdr.code)
-	{
-	case LVN_DELETEITEM:
-	{
-		ListParmData* lpd = (ListParmData*)plist->lParam;
-		MakeListParmIdle(lpd);
-	}
-		break;
-	case LVN_COLUMNCLICK:
-	{
-		if (listContent == TORRENTLIST) {
-			sortasc = sortasc == false;
-			ListView_SortItems(hList, LVComp_Nodes, plist->iSubItem);
-			std::wstringstream wss;
-			wss << plist->iSubItem;
-			profile.SetDefaultValue(L"LocalListSort", wss.str());
-			wss.str(std::wstring());
-			wss << sortasc;
-			profile.SetDefaultValue(L"LocalSortDirection", wss.str());
-		}
-		else if (listContent == TORRENTGROUP) {
-			sortasc = sortasc == false;
-			ListView_SortItems(hList, LVComp_Group, plist->iSubItem);
-			std::wstringstream wss;
-			wss << plist->iSubItem;
-			profile.SetDefaultValue(L"LocalGroupSort", wss.str());
-			wss.str(std::wstring());
-			wss << sortasc;
-			profile.SetDefaultValue(L"LocalSortDirection", wss.str());
-		}
-		else if (listContent == TORRENTFILE) {
-			sortasc = sortasc == false;
-			ListView_SortItems(hList, LVComp_Files, plist->iSubItem);
-
-			std::wstringstream wss;
-			wss << plist->iSubItem;
-			profile.SetDefaultValue(L"LocalListFileSort", wss.str());
-			wss.str(std::wstring());
-			wss << sortasc;
-			profile.SetDefaultValue(L"LocalSortDirection", wss.str());
-
-		}
-	}
-	break;
-	case NM_DBLCLK:
-	{
-		LPNMITEMACTIVATE lpnmitem = (LPNMITEMACTIVATE)lParam;
-		LVITEM lit = { 0 };
-		lit.mask = LVIF_PARAM;
-		lit.iItem = lpnmitem->iItem;
-		lit.iSubItem = lpnmitem->iSubItem;
-		ListParmData* lpd;
-
-		ListView_GetItem(hList, &lit);
-		lpd = (ListParmData*)lit.lParam;
-		switch (listContent) {
-		case TORRENTGROUP:
-			if (lpd->type == ListParmData::Group) {
-				TreeViewSelectItem(lpd->group);
-			}
-			break;
-		case TORRENTLIST:
-			if (lpd->type == ListParmData::Node) {
-				TreeViewSelectItem(lpd->node);
-			}
-			break;
-		case TORRENTDETAIL:
-			if (lpd->type == ListParmData::Tracker) {
-				TorrentNode* node = lpd->node;
-				if (node->trackerscount == 1) {
-					TorrentGroup* group = analyzer->GetTrackerGroup(node->trackers[0]);
-					if (group) {
-						TreeViewSelectItem(group);
-					}
-				}
-			}
-		}
-	}
-	break;
-	case NM_CUSTOMDRAW:
-	{
-		LPNMLVCUSTOMDRAW plcd = (LPNMLVCUSTOMDRAW)lParam;
-		switch (listContent) {
-		case TORRENTDETAIL:
-			lrt = ProcCustDrawListDetail(plcd);
-			break;
-		case TORRENTLIST:
-			lrt = ProcCustDrawListNodes(plcd);
-			break;
-		case TORRENTFILE:
-			lrt = ProcCustDrawListFile(plcd);
-			break;
-		}
-	} // customdraw
-	} // notify messages
-	return lrt;
-}
-
-int WindowView::TreeViewSelectItem(TorrentNode* node)
-{
-	HTREEITEM hti = torrentsViewOrgs->findTreeItem(node);
-
-	if (hti) {
-		TreeView_Select(hTree, hti, TVGN_CARET);
-		TreeView_Select(hTree, hti, TVGN_FIRSTVISIBLE);
-	}
-	return 0;
-}
-
-int WindowView::TreeViewSelectItem(TorrentGroup* grp)
-{
-	HTREEITEM hti = torrentsViewOrgs->findTreeItem(grp);
-	if (hti) {
-		TreeView_Select(hTree, hti, TVGN_CARET);
-		TreeView_Select(hTree, hti, TVGN_FIRSTVISIBLE);
-	}
-	return 0;
-}
-
-LRESULT WindowView::ProcCustDrawListFile(LPNMLVCUSTOMDRAW& plcd)
-{
-	LRESULT lrt = CDRF_DODEFAULT;
-	switch (plcd->nmcd.dwDrawStage)
-	{
-	case CDDS_PREPAINT:
-		lrt = CDRF_NOTIFYITEMDRAW;
-		break;
-	case CDDS_ITEMPREPAINT:
-	{
-		ListParmData* lpd = (ListParmData*)plcd->nmcd.lItemlParam;
-		TorrentNodeFileNode* cfn = lpd->file;
-		plcd->clrTextBk = cfn->check ? plcd->clrTextBk : RGB(0xCF, 0xCF, 0xCF);
-		plcd->clrText = cfn->priority > 0 ? RGB(0x00, 0x7F, 0x00) : (cfn->priority < 0 ? RGB(0x3F, 0x3F, 0xCF) : plcd->clrText);
-	}
-	break;
-	case CDDS_ITEMPREPAINT | CDDS_SUBITEM:
-	{
-		ListParmData* lpd = (ListParmData*)plcd->nmcd.lItemlParam;
-		TorrentNode* ctn = lpd->node;
-		if (ctn->status == 0) {
-			plcd->clrTextBk = RGB(0xCF, 0xCF, 0xCF);
-		}
-		if (ctn->status == 4) {
-			plcd->clrTextBk = RGB(0xCF, 0xFF, 0xCF);
-			//plcd->clrFace = RGB(0xCF, 0xFF, 0xCF);
-			plcd->clrText = RGB(0x00, 0x3F, 0x00);
-		}
-		if (ctn->error.length() > 0) {
-			plcd->clrText = RGB(0xFF, 0x00, 0x00);
-		}
-	}
-	break;
-	}
-	return lrt;
-}
-
-LRESULT WindowView::ProcCustDrawListNodes(LPNMLVCUSTOMDRAW& plcd)
-{
-	LRESULT lrt = CDRF_DODEFAULT;
-	switch (plcd->nmcd.dwDrawStage)
-	{
-	case CDDS_PREPAINT:
-		lrt = CDRF_NOTIFYITEMDRAW;
-		break;
-	case CDDS_ITEMPREPAINT:
-	{
-		int sli = ListView_GetNextItem(hList, ((int)plcd->nmcd.dwItemSpec) - 1, LVNI_SELECTED);
-		if (sli != plcd->nmcd.dwItemSpec) {
-			ListParmData* ctn = (ListParmData*)plcd->nmcd.lItemlParam;
-			if (ctn->type == ListParmData::Node) {
-				lrt = ctn->node->error.length() > 0 ? CDRF_NOTIFYSUBITEMDRAW : lrt;
-				lrt = ctn->node->status == 0 ? CDRF_NOTIFYSUBITEMDRAW : lrt;
-				lrt = ctn->node->status == 4 ? CDRF_NOTIFYSUBITEMDRAW : lrt;
-			}
-		}
-	}
-	break;
-	case CDDS_ITEMPREPAINT | CDDS_SUBITEM:
-	{
-		ListParmData* lpd = (ListParmData*)plcd->nmcd.lItemlParam;
-		if (lpd->type == ListParmData::Node) {
-			TorrentNode* ctn = lpd->node;
-			if (ctn->status == 0) {
-				plcd->clrTextBk = RGB(0xCF, 0xCF, 0xCF);
-			}
-			if (ctn->status == 4) {
-				int nameisub = 1;
-				if (plcd->iSubItem == nameisub) {
-					RECT src;
-					ListView_GetSubItemRect(hList, plcd->nmcd.dwItemSpec, nameisub, LVIR_BOUNDS, &src);
-					FillRect(plcd->nmcd.hdc, &src, hbGreen);
-					src.left += 2 * GetSystemMetrics(SM_CXEDGE);
-					//InflateRect(&src, -1, -1);
-					if (lpd->node->size > 0) {
-						RECT urc(src);
-						urc.right = (long)((src.right - src.left) * lpd->node->leftsize/lpd->node->size) + src.left;
-						FillRect(plcd->nmcd.hdc, &urc, hbRed);
-						//LVITEM lvi = { 0 };
-						//lvi.iSubItem = 1;
-						//lvi.pszText = wbuf;
-						//lvi.cchTextMax = 1024;
-						//int tls = ::SendMessage(hFileList, LVM_GETITEMTEXT, plcd->nmcd.dwItemSpec, (LPARAM)&lvi);
-						DrawText(plcd->nmcd.hdc, lpd->node->name.c_str(), lpd->node->name.length(), &src, DT_LEFT);
-						lrt = CDRF_SKIPDEFAULT;
-					}
-				}
-
-				if (lrt != CDRF_SKIPDEFAULT) {
-					plcd->clrTextBk = RGB(0xCF, 0xFF, 0xCF);
-					plcd->clrText = RGB(0x00, 0x3F, 0x00);
-				}
-			}
-			if (ctn->error.length() > 0) {
-				plcd->clrText = RGB(0xFF, 0x00, 0x00);
-			}
-		}
-	}
-	break;
-	}
-	return lrt;
-}
-LRESULT WindowView::ProcCustDrawListDetail(LPNMLVCUSTOMDRAW& plcd)
-{
-	LRESULT lrt = CDRF_DODEFAULT;
-	switch (plcd->nmcd.dwDrawStage)
-	{
-	case CDDS_PREPAINT:
-		lrt = CDRF_NOTIFYITEMDRAW;
-		break;
-	case CDDS_ITEMPREPAINT:
-		switch (plcd->nmcd.dwItemSpec) {
-		case 1:
-		case 6:
-		case 7:
-		case 11:
-		{
-			ListParmData* lpd = (ListParmData*)plcd->nmcd.lItemlParam;
-
-			TorrentNode* ctn = lpd->node;
-			lrt = ctn->status == 0 ? CDRF_NOTIFYSUBITEMDRAW : lrt;
-			lrt = ctn->error.length() > 0 ? CDRF_NOTIFYSUBITEMDRAW : lrt;
-		}
-		break;
-		case 27:
-			lrt = CDRF_NOTIFYSUBITEMDRAW;
-			break;
-		default:
-			lrt = CDRF_DODEFAULT;
-			break;
-		}
-		break;
-	case CDDS_ITEMPREPAINT | CDDS_SUBITEM:
-		lrt = CDRF_DODEFAULT;
-		switch (plcd->nmcd.dwItemSpec) {
-		case 27:
-			if (plcd->iSubItem == 1)
-			{
-				lrt = ProcCustDrawListPieces(plcd);
-			}
-			break;
-		case 1:
-		case 6:
-		case 7:
-		{
-			ListParmData* lpd = (ListParmData*)plcd->nmcd.lItemlParam;
-
-			TorrentNode* ctn = lpd->node;
-			if (ctn->status == 0) {
-				plcd->clrTextBk = RGB(0xCC, 0xCC, 0xCC);
-			}
-		}
-		case 11:
-		{
-			ListParmData* lpd = (ListParmData*)plcd->nmcd.lItemlParam;
-			TorrentNode* ctn = lpd->node;
-			if (ctn->error.length() > 0) {
-				plcd->clrText = RGB(0xFF, 0x00, 0x00);
-			}
-		}
-		break;
-		}
-	}
-
-	return lrt;
-}
-
-LRESULT WindowView::ProcCustDrawListName(const LPNMLVCUSTOMDRAW& plcd, const COLORREF& ocr)
-{
-	LRESULT lrt = CDRF_DODEFAULT;
-	RECT src;
-	ListView_GetSubItemRect(hList, plcd->nmcd.dwItemSpec, 1, LVIR_BOUNDS, &src);
-	int imm = 3 * GetSystemMetrics(SM_CXEDGE);
-	src.left += imm;
-	if (src.right > src.left) {
-		ListParmData* lpd = (ListParmData*)plcd->nmcd.lItemlParam;
-		TorrentNode* ctn = lpd->node;
-		DrawText(plcd->nmcd.hdc, ctn->name.c_str(), (DWORD)ctn->name.length(), &src, DT_LEFT);
-		SetTextColor(plcd->nmcd.hdc, ocr);
-		lrt = CDRF_SKIPDEFAULT;
-	}
-
-	return lrt;
-}
-
-LRESULT WindowView::ProcCustDrawListPieces(const LPNMLVCUSTOMDRAW& plcd)
-{
-	RECT src;
-	HGDIOBJ hpo;
-	ListView_GetSubItemRect(hList, plcd->nmcd.dwItemSpec, 1, LVIR_BOUNDS, &src);
-	src.left += 3 * GetSystemMetrics(SM_CXEDGE);
-	InflateRect(&src, -1, -1);
-	hpo = SelectObject(plcd->nmcd.hdc, gradualpen[0]);
-	ListParmData* lpd = (ListParmData*)plcd->nmcd.lItemlParam;
-	TorrentNode* ctn = lpd->node;
-	int ide = 0;
-	double mgs;
-	int ipi = 0;
-	unsigned int spi = 0;
-	int idx = 0;
-	int cwd = src.right - src.left;
-	HPEN hpen;
-	LRESULT lrt = CDRF_DODEFAULT;
-	if (ctn->pieces.length() > 0) {
-		if (cwd > 0) {
-			while (spi < ctn->piececount) {
-				ide += ctn->piecesdata[spi];
-				idx++;
-				spi++;
-				mgs = spi * cwd;
-				mgs /= ctn->piececount;
-
-				if (ipi < (int)mgs) {
-					ide = ide * 255 / idx;
-					hpen = gradualpen[ide];
-					SelectObject(plcd->nmcd.hdc, hpen);
-					while (ipi < (int)mgs) {
-						MoveToEx(plcd->nmcd.hdc, ipi + src.left, src.top, NULL);
-						LineTo(plcd->nmcd.hdc, ipi + src.left, src.bottom);
-						ipi++;
-					}
-					ide = 0;
-					idx = 0;
-				}
-			}
-			SelectObject(plcd->nmcd.hdc, hpo);
-			lrt = CDRF_SKIPDEFAULT;
-		}
-	}
-
-	return lrt;
-}
-
-LRESULT WindowView::ProcNotifyTree(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
-{
-	LRESULT lrt = 0;
-	NMTREEVIEW* pntree = (NMTREEVIEW*)lParam;
-
-	switch (pntree->hdr.code)
-	{
-	case TVN_SELCHANGED:
-	{
-		if (pntree->itemNew.hItem)
-		{
-			if (pntree->itemNew.lParam) {
-				TreeParmData* tipd = reinterpret_cast<TreeParmData*>(pntree->itemNew.lParam);
-				if (tipd->ItemType == TreeParmData::Group) {
-					UpdateListViewTorrentGroup(tipd->group);
-					TreeView_Expand(hTree, pntree->itemNew.hItem, TVE_EXPAND);
-				}
-				else if (tipd->ItemType == TreeParmData::Torrent) {
-					UpdateListViewTorrentDetail(tipd->node);
-					TreeView_Expand(hTree, pntree->itemNew.hItem, TVE_EXPAND);
-					PostMessage(hWnd, WM_U_REFRESHTORRENTDETAIL, (WPARAM)tipd->node, 0);
-				}
-				else if (tipd->ItemType == TreeParmData::Session) {
-					ListUpdateSession(tipd->session);
-				}
-				else if (tipd->ItemType == TreeParmData::File) {
-					ListUpdateFiles(tipd->file);
-				}
-			}
-		}
-	}
-	break;
-	case NM_DBLCLK:
-	{
-		HTREEITEM htv = TreeView_GetSelection(hTree);
-		WCHAR wbuf[1024];
-
-		if (htv) {
-			TVITEM tvi = { 0 };
-			tvi.hItem = htv;
-			tvi.mask = TVIF_PARAM | TVIF_TEXT;
-			tvi.pszText = wbuf;
-			tvi.cchTextMax = 1024;
-			BOOL btn = TreeView_GetItem(hTree, &tvi);
-			if (btn) {
-				TreeParmData* tpd = (TreeParmData*)tvi.lParam;
-				if (tpd->ItemType == TreeParmData::Tracker) {
-					TorrentGroup* grp = analyzer->GetTrackerGroup(tvi.pszText);
-					if (grp) {
-						TreeViewSelectItem(grp);
-					}
-				}
-			}
-		}
-	}
-	break;
-	case NM_CUSTOMDRAW:
-	{
-		LPNMTVCUSTOMDRAW pntd = (LPNMTVCUSTOMDRAW)lParam;
-		lrt = CDRF_DODEFAULT;
-		switch (pntd->nmcd.dwDrawStage) {
-		case CDDS_PREPAINT:
-			lrt = CDRF_NOTIFYITEMDRAW;
-			break;
-		case CDDS_ITEMPREPAINT:
-		{
-			TreeParmData* tpd = (TreeParmData*)pntd->nmcd.lItemlParam;
-			if (tpd->ItemType == TreeParmData::Torrent) {
-				if (tpd->node->status == 0) {
-					pntd->clrTextBk = RGB(0xCC, 0xCC, 0xCC);
-				}
-				if (tpd->node->status == 4) {
-					pntd->clrTextBk = RGB(0xCF, 0xFF, 0xCF);
-					pntd->clrText = RGB(0x00, 0x3F, 0x00);
-				}
-				else if (tpd->node->error.length() > 0) {
-					pntd->clrText = RGB(0xFF, 0x00, 0x00);
-				}
-			}
-		}
-		break;
-		}
-	}
-	break;
-	}
-	return lrt;
 }
 
 // Message handler for about box.
@@ -3433,27 +1818,29 @@ int WindowView::CreateViewControls()
 	::ShowWindow(*splitTree, SW_SHOW);
 	splitTree->style = CSplitWnd::LEFTRIGHT;
 
-	hTree = CreateWindow(WC_TREEVIEW, L"", WS_CHILD | WS_VSCROLL | TVS_HASBUTTONS | TVS_LINESATROOT | TVS_SHOWSELALWAYS | TVS_HASLINES, 0, 0, 100, 100, *splitTree, NULL, hInst, NULL);
-	hList = CreateWindow(WC_LISTVIEW, L"", WS_CHILD | WS_VSCROLL | WS_HSCROLL | LVS_REPORT | WS_VISIBLE, 0, 0, 200, 10, *splitTree, NULL, hInst, NULL);
+	HWND htree = CreateWindow(WC_TREEVIEW, L"", WS_CHILD | WS_VSCROLL | TVS_HASBUTTONS | TVS_LINESATROOT | TVS_SHOWSELALWAYS | TVS_HASLINES, 0, 0, 100, 100, *splitTree, NULL, hInst, NULL);
+	HWND hlist = CreateWindow(WC_LISTVIEW, L"", WS_CHILD | WS_VSCROLL | WS_HSCROLL | LVS_REPORT | WS_VISIBLE, 0, 0, 200, 10, *splitTree, NULL, hInst, NULL);
+	listview = new CViewListFrame(hlist);
+	listview->hMain = hWnd;
+	listview->profile = &profile;
+	listview->analyzer = analyzer;
 
-	splitTree->SetWindow(hTree);
-	splitTree->SetWindow(hList);
+	treeview = new CViewTreeFrame(htree);
+	treeview->analyzer = analyzer;
+	treeview->hMain = hWnd;
+
+	splitTree->SetWindow(*treeview);
+	splitTree->SetWindow(*listview);
 	splitTree->SetRatio(0.2);
 
 	//ListView_SetExtendedListViewStyle(hList, LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_CHECKBOXES);
-	ListView_SetExtendedListViewStyle(hList, LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES);
-	HWND hhd = ListView_GetHeader(hList);
-	if (hhd) {
-		LONG_PTR lps = GetWindowLongPtr(hhd, GWL_STYLE);
-		lps |= HDS_FLAT;
-		SetWindowLongPtr(hhd, GWL_STYLE, lps);
-	}
+	listview->InitStyle();
 
 	/////////////////// Setup system font
 	HFONT hsysfont = (HFONT)::GetStockObject(DEFAULT_GUI_FONT);
-	::SendMessage(hList, WM_SETFONT, (WPARAM)hsysfont, MAKELPARAM(TRUE, 0));
+//	::SendMessage(hList, WM_SETFONT, (WPARAM)hsysfont, MAKELPARAM(TRUE, 0));
 	::SendMessage(hLog, WM_SETFONT, (WPARAM)hsysfont, MAKELPARAM(TRUE, 0));
-	::SendMessage(hTree, WM_SETFONT, (WPARAM)hsysfont, MAKELPARAM(TRUE, 0));
+	::SendMessage(*treeview, WM_SETFONT, (WPARAM)hsysfont, MAKELPARAM(TRUE, 0));
 	::SendMessage(hUrl, WM_SETFONT, (WPARAM)hsysfont, MAKELPARAM(TRUE, 0));
 	::SendMessage(hNew, WM_SETFONT, (WPARAM)hsysfont, MAKELPARAM(TRUE, 0));
 	::SendMessage(hDelay, WM_SETFONT, (WPARAM)hsysfont, MAKELPARAM(TRUE, 0));
@@ -3492,208 +1879,33 @@ int WindowView::ViewLog(const WCHAR* msg)
 
 int WindowView::UpdateListViewTorrents()
 {
-	HTREEITEM htv = TreeView_GetSelection(hTree);
+	HTREEITEM htv = treeview->GetSelectedItem();
 
 	if (htv) {
-		TVITEM tvi = { 0 };
-		tvi.hItem = htv;
-		tvi.mask = TVIF_PARAM;
-		BOOL btn = TreeView_GetItem(hTree, &tvi);
-		if (btn) {
-			if (tvi.lParam) {
-				TreeParmData* tip = (TreeParmData*)tvi.lParam;
-				if (tip->ItemType == TreeParmData::Group) {
-					TorrentGroup* cgp = tip->group;
-					if (listContent == TORRENTLIST) {
-						UpdateListViewTorrentNodes(cgp);
-
-						std::wstring vvv;
-						profile.GetDefaultValue(L"LocalListSort", vvv);
-						if (vvv.length() > 0) {
-							std::wstringstream wss(vvv);
-							int sit;
-							wss >> sit;
-							if (sit >= 0) {
-								ListView_SortItems(hList, LVComp_Nodes, sit);
-							}
-						}
-					}
-					else if (listContent == TORRENTGROUP) {
-						UpdateListViewGroups(hList);
-
-						std::wstring vvv;
-						profile.GetDefaultValue(L"LocalGroupSort", vvv);
-						if (vvv.length() > 0) {
-							std::wstringstream wss(vvv);
-							int sit;
-							wss >> sit;
-							if (sit >= 0) {
-								ListView_SortItems(hList, LVComp_Group, sit);
-							}
-						}
-
-					}
+		TreeParmData* tip = treeview->GetItemParm(htv);
+		if (tip) {
+			switch (tip->ItemType) {
+			case TreeParmData::Group:
+				if (tip->group->subs.size() > 0) {
+					listview->UpdateListViewGroups();
 				}
-				else if (tip->ItemType == TreeParmData::Torrent) {
-					TorrentNode* tnd = tip->node;
-					if (listContent == TORRENTDETAIL) {
-						if (tnd->updatetick > tnd->readtick) {
-							int lic = ListView_GetItemCount(hList);
-							UpdateListViewTorrentDetailData(tnd);
-						}
-					}
+				else {
+					listview->UpdateListViewTorrentNodes(tip->group);
 				}
-				else if (tip->ItemType == TreeParmData::File) {
-					TorrentNodeFileNode* fnf = tip->file;
-					if (listContent == TORRENTFILE) {
-						UpdateListViewTorrentFiles(fnf);
-						
-						std::wstring vvv;
-						profile.GetDefaultValue(L"LocalListFileSort", vvv);
-						if (vvv.length() > 0) {
-							std::wstringstream wss(vvv);
-							int sit;
-							wss >> sit;
-							if (sit >= 0) {
-								ListView_SortItems(hList, LVComp_Files, sit);
-							}
-						}
-					}
-				}
+				break;
+			case TreeParmData::Torrent:
+				listview->UpdateListViewTorrentDetailData(tip->node);
+				break;
+			case TreeParmData::File:
+				listview->UpdateListViewTorrentFiles(tip->file);
+				break;
 			}
+
 		}
 	}
 	return 0;
 }
 
-void WindowView::UpdateViewTorrentGroup(TorrentGroup* grp)
-{
-	wchar_t tbuf[1024];
-	TreeGroupShadow* ngi;
-	TreeParmData* npd;
-
-	TVINSERTSTRUCT tvi;
-	if (torrentsViewOrgs) {
-		ngi = torrentsViewOrgs->GetTreeGroupShadow(grp);
-		if (ngi) {
-			if (ngi->hnode == NULL) {
-				tvi = { 0 };
-				wsprintf(tbuf, L"%s", grp->name.c_str());
-				tvi.item.mask = TVIF_TEXT | TVIF_PARAM;
-				tvi.item.cchTextMax = (int)wcslen(tbuf);
-				tvi.item.pszText = (LPWSTR)tbuf;
-				tvi.hParent = NULL;
-				npd = TreeItemParmDataHelper::CreateTreeItemParmData(TreeParmData::Session);
-				npd->session = &analyzer->session;
-				tvi.item.lParam = (LPARAM)npd;
-				tvi.hInsertAfter = TVI_ROOT;
-				ngi->hnode = TreeView_InsertItem(hTree, &tvi);
-			}
-			UpdateTreeViewGroup(ngi);
-			//updateListViewRefresh();
-
-			TreeView_Expand(hTree, ngi->hnode, TVE_EXPAND);
-		}
-	}
-}
-
-HTREEITEM WindowView::UpdateTreeViewNodeItem(TreeGroupShadow* tgs, TorrentNode* node)
-{
-	std::map<TorrentNode*, HTREEITEM>::iterator ittt = tgs->nodeitems.find(node);
-	TVINSERTSTRUCT tis;
-	wchar_t tbuf[1024];
-	TreeParmData* ntipd;
-	HTREEITEM hti;
-
-	if (ittt == tgs->nodeitems.end()) {
-		tis = { 0 };
-		tis.item.mask = TVIF_TEXT | TVIF_PARAM;
-		wsprintf(tbuf, L"%s", node->name.c_str());
-		tis.item.cchTextMax = (int)wcslen(tbuf);
-		tis.item.pszText = (LPWSTR)tbuf;
-		tis.hParent = tgs->hnode;
-		ntipd = TreeItemParmDataHelper::CreateTreeItemParmData(TreeParmData::Torrent);
-		ntipd->node = node;
-		tis.item.lParam = (LPARAM)ntipd;
-
-		hti = TreeView_InsertItem(hTree, &tis);
-		if (hti) {
-			tgs->nodeitems[node] = hti;
-		}
-	}
-	else {
-		hti = ittt->second;
-	}
-
-	return hti;
-}
-
-void WindowView::UpdateTreeViewGroup(TreeGroupShadow* gti)
-{
-	TVINSERTSTRUCT tis;
-	wchar_t tbuf[1024];
-	TorrentGroup* grp = gti->group;
-	TreeParmData* ntipd;
-	TorrentParmItems* ims;
-	std::map<unsigned long, HTREEITEM>::iterator ittt;
-	HTREEITEM hti;
-	TorrentNode* node;
-
-	for (std::map<unsigned long, TorrentNode*>::iterator ittn = grp->torrents.begin()
-		; ittn != grp->torrents.end()
-		; ittn++) {
-		node = ittn->second;
-		hti = UpdateTreeViewNodeItem(gti, node);
-		if (hti) {
-			ims = gti->GetNodeParmItems(node);
-			UpdateTreeViewTorrentDetail(ims);
-		}
-	}
-
-	TreeGroupShadow* ntg;
-	std::map<TorrentGroup*, TreeGroupShadow*>::iterator itgg;
-	TorrentGroup* ttg;
-	LARGE_INTEGER itt;
-
-	for (std::map<std::wstring, TorrentGroup*>::iterator ittg = grp->subs.begin()
-		; ittg != grp->subs.end()
-		; ittg++) {
-		ttg = ittg->second;
-		ntg = torrentsViewOrgs->GetTreeGroupShadow(ttg);
-		if (ntg) {
-			if (ntg->hnode == NULL) {
-				tis = { 0 };
-				tis.item.mask = TVIF_TEXT | TVIF_PARAM;
-				FormatByteSize(tbuf + 512, 512, ttg->size);
-				wsprintf(tbuf, L"(%s) %s", tbuf + 512, ttg->name.c_str());
-				tis.item.cchTextMax = (int)wcslen(tbuf);
-				tis.item.pszText = (LPWSTR)tbuf;
-				ntipd = TreeItemParmDataHelper::CreateTreeItemParmData(TreeParmData::Group);
-				ntipd->group = ttg;
-				tis.hParent = gti->hnode;
-				tis.item.lParam = (LPARAM)ntipd;
-
-				hti = TreeView_InsertItem(hTree, &tis);
-				ntg->hnode = hti;
-			}
-			else {
-				if (ttg->updatetick > ttg->readtick) {
-					itt.QuadPart = GetTickCount64();
-					ttg->readtick = itt.LowPart;
-					TVITEM tvi;
-					tvi.hItem = ntg->hnode;
-					tvi.mask = TVIF_TEXT;
-					FormatByteSize(tbuf + 512, 512, ittg->second->size);
-					wsprintf(tbuf, L"(%s) %s", tbuf + 512, ittg->second->name.c_str());
-					tvi.pszText = tbuf;
-					tvi.cchTextMax = wcslen(tbuf);
-					TreeView_SetItem(hTree, &tvi);
-				}
-			}
-			UpdateTreeViewGroup(ntg);
-		}
-	}
-}
 
 int WindowView::StartAnalysis()
 {
@@ -3701,15 +1913,12 @@ int WindowView::StartAnalysis()
 
 	if (remoteUrl.length() > 0) {
 		analyzer->StartClient(remoteUrl.c_str(), remoteUser.c_str(), remotePass.c_str());
-		if (torrentsViewOrgs == NULL) {
-			torrentsViewOrgs = TreeGroupShadow::CreateTreeGroupShadow(analyzer->groupRoot, NULL);
-		}
-		torrentsViewOrgs->SyncGroup();
+		treeview->SyncGroup(analyzer->groupRoot);
 
 		wsprintf(wbuf, L"Login to remote site [%s] user/password [%s:%s]", remoteUrl.c_str(), remoteUser.c_str(), remotePass.c_str());
 		ViewLog(wbuf);
 
-		UpdateViewTorrentGroup(analyzer->groupRoot);
+		treeview->UpdateViewTorrentGroup(analyzer->groupRoot);
 		SetTimer(hWnd, 0x123, 1000, ViewProcTimer);
 		canRefresh = true;
 		panelState->SwitchWindow(hLog);
@@ -3717,282 +1926,6 @@ int WindowView::StartAnalysis()
 	else {
 		ViewLog(L"No valid URL found");
 		panelState->SwitchWindow(hUrl);
-	}
-	return 0;
-}
-
-int WindowView::ClearColumns(HWND hlist)
-{
-	ListView_DeleteAllItems(hlist);
-
-	HWND hhd = ListView_GetHeader(hlist);
-	if (hhd) {
-		int hdc = Header_GetItemCount(hhd);
-		if (hdc > 0) {
-			for (int ii = 0; ii < hdc; ii++) {
-				ListView_DeleteColumn(hlist, 0);
-			}
-		}
-	}
-	return 0;
-}
-
-int WindowView::CreateListColumnsGroupList(HWND hlist)
-{
-	struct ColDef cols[] = {
-		{L"Name", 200}
-		, { L"Size", 100 }
-		, { L"ViewSize", 100 }
-		, { L"Count", 100}
-		, { L"Download/s", 100}
-		, { L"Upload/s", 100}
-		, {0}
-	};
-
-	CreateListColumns(hlist, cols);
-	listContent = TORRENTGROUP;
-	return 0;
-}
-
-int WindowView::CreateListColumnsNodeList(HWND hlist)
-{
-	struct ColDef cols[] = {
-		{ L"ID", 30 }
-		, { L"Name", 200 }
-		, { L"Size", 100 }
-		, { L"ViewSize", 100 }
-		, { L"Tracker", 100 }
-		, { L"Download", 50 }
-		, { L"Upload", 50 }
-		, { L"Status", 50 }
-		, { L"Ratio", 50 }
-		, {0}
-	};
-
-	CreateListColumns(hlist, cols);
-	listContent = TORRENTLIST;
-	return 0;
-}
-
-int WindowView::CreateListColumns(HWND hlist, struct ColDef *cols)
-{
-	LVCOLUMN ilc = { 0 };
-	int ii = 0;
-	int rtn;
-
-	while (cols[ii].name[0]) {
-		ilc.mask = LVCF_TEXT | LVCF_WIDTH;
-		ilc.pszText = cols[ii].name;
-		ilc.cchTextMax = (int)wcslen(cols[ii].name);
-		ilc.cx = cols[ii].width;
-
-		rtn = ListView_InsertColumn(hlist, ii, &ilc);
-
-		ii++;
-	}
-
-	return 0;
-}
-
-int WindowView::UpdateListViewTorrentNodesDetail(HWND hlist, int iti, TorrentNode* nod)
-{
-	wchar_t wbuf[128];
-	int isub = 0;
-
-	FormatViewSize(wbuf, 128, nod->id);
-	ListView_SetItemText(hlist, iti, isub, wbuf);
-	isub++;
-
-	ListView_SetItemText(hlist, iti, isub, (LPWSTR)nod->name.c_str());
-	isub++;
-
-	FormatViewSize(wbuf, 128, nod->size);
-	ListView_SetItemText(hlist, iti, isub, wbuf);
-	isub++;
-
-	FormatByteSize(wbuf, 128, nod->size);
-	ListView_SetItemText(hlist, iti, isub, wbuf);
-	isub++;
-
-	if (nod->trackerscount > 0) {
-		ListView_SetItemText(hlist, iti, isub, (LPWSTR)nod->trackers[0].c_str());
-	}
-	isub++;
-
-	FormatByteSize(wbuf, 128, nod->downspeed);
-	ListView_SetItemText(hlist, iti, isub, wbuf);
-	isub++;
-
-	FormatByteSize(wbuf, 128, nod->upspeed);
-	ListView_SetItemText(hlist, iti, isub, wbuf);
-	isub++;
-
-	FormatViewStatus(wbuf, 128, nod->status);
-	ListView_SetItemText(hlist, iti, isub, wbuf);
-	isub++;
-
-	FormatViewDouble(wbuf, 128, nod->ratio);
-	ListView_SetItemText(hlist, iti, isub, wbuf);
-	isub++;
-
-	ULARGE_INTEGER lit;
-	lit.QuadPart = GetTickCount64();
-	nod->readtick = lit.LowPart;
-
-	return 0;
-}
-
-int WindowView::UpdateListViewGroups(HWND hlist)
-{
-	if (listContent == LISTCONTENT::TORRENTGROUP) {
-		int lsc = ListView_GetItemCount(hlist);
-		LVITEM lvi;
-		BOOL btn;
-		ListParmData* lpd;
-
-		for (int ii = 0; ii < lsc; ii++) {
-			lvi.mask = LVIF_PARAM;
-			lvi.iItem = ii;
-			
-			btn = ListView_GetItem(hlist, &lvi);
-			if (btn) {
-				lpd = (ListParmData*)lvi.lParam;
-				if (lpd->type == ListParmData::Group) {
-					UpdateListViewTorrentGroupData(hlist, ii, lpd->group);
-				}
-			}
-		}
-	}
-	return 0;
-}
-
-int WindowView::UpdateListViewTorrentGroupData(HWND hlist, int iti, TorrentGroup* nod)
-{
-	wchar_t wbuf[128];
-	int itt = 0;
-
-	itt++;
-
-	FormatViewSize(wbuf, 128, nod->size);
-	ListView_SetItemText(hlist, iti, itt, wbuf);
-	itt++;
-
-	FormatByteSize(wbuf, 128, nod->size);
-	ListView_SetItemText(hlist, iti, itt, wbuf);
-	itt++;
-
-	wsprintf(wbuf, L"%d", nod->torrents.size());
-	ListView_SetItemText(hlist, iti, itt, wbuf);
-	itt++;
-
-	FormatByteSize(wbuf + 64, 64, nod->downspeed);
-	wsprintf(wbuf, L"%s/s", wbuf + 64);
-	ListView_SetItemText(hlist, iti, itt, wbuf);
-	itt++;
-
-	FormatByteSize(wbuf + 64, 64, nod->upspeed);
-	wsprintf(wbuf, L"%s/s", wbuf + 64);
-	ListView_SetItemText(hlist, iti, itt, wbuf);
-	itt++;
-
-	return 0;
-}
-
-int WindowView::UpdateListViewTorrentGroup(TorrentGroup* grp)
-{
-
-	LVITEM lvi = { 0 };
-	int iti = 0;
-	ListParmData* lpd;
-
-	ClearColumns(hList);
-
-	if (grp->subs.size() > 0) {
-		CreateListColumnsGroupList(hList);
-		for (std::map<std::wstring, TorrentGroup*>::iterator itgp = grp->subs.begin()
-			; itgp != grp->subs.end()
-			; itgp++) {
-			lvi.mask = LVIF_TEXT;
-			lvi.pszText = (LPWSTR) itgp->second->name.c_str();
-			lvi.cchTextMax = (int)wcslen(lvi.pszText);
-			lvi.iItem = iti;
-			iti = ListView_InsertItem(hList, &lvi);
-
-			lvi.iItem = iti;
-			lvi.mask = LVIF_PARAM;
-			lpd = GetListParmData(iti);
-			lpd->type = ListParmData::Group;
-			lpd->group = itgp->second;
-			lvi.lParam = (LPARAM)lpd;
-			ListView_SetItem(hList, &lvi);
-
-			UpdateListViewTorrentGroupData(hList, iti, itgp->second);
-			iti++;
-		}
-	} else {
-		CreateListColumnsNodeList(hList);
-		UpdateListViewTorrentNodes(grp);
-
-		std::wstring vvv;
-		profile.GetDefaultValue(L"LocalListSort", vvv);
-		if (vvv.length() > 0) {
-			std::wstringstream wss(vvv);
-			int sit;
-			wss >> sit;
-			if (sit >= 0) {
-				ListView_SortItems(hList, LVComp_Nodes, sit);
-			}
-		}
-
-	}
-	return 0;
-}
-
-int WindowView::UpdateListViewTorrentNodes(TorrentGroup* grp)
-{
-	std::set<TorrentNode*> nodes;
-	ListParmData* lpd;
-	wchar_t wbuf[1024];
-
-	grp->GetNodes(nodes);
-
-	int itc = ListView_GetItemCount(hList);
-	LVITEM lvi = { 0 };
-	for (int ii = 0; ii < itc; ii++) {
-		lvi.iItem = ii;
-		lvi.mask = LVIF_PARAM;
-		ListView_GetItem(hList, &lvi);
-		lpd = (ListParmData*)lvi.lParam;
-		if (lpd->type == ListParmData::Node) {
-			if (nodes.find(lpd->node) != nodes.end()) {
-				nodes.erase(lpd->node);
-				if (lpd->node->updatetick > lpd->node->readtick) {
-					UpdateListViewTorrentNodesDetail(hList, ii, lpd->node);
-				}
-			}
-		}
-	}
-	itc++;
-	for (std::set<TorrentNode*>::iterator itnd = nodes.begin()
-		; itnd != nodes.end()
-		; itnd++) {
-		lvi.mask = LVIF_TEXT;
-		wsprintf(wbuf, L"%d", (*itnd)->id);
-		lvi.pszText = wbuf;
-		lvi.cchTextMax = (int)wcslen(lvi.pszText);
-		lvi.iItem = itc;
-		itc = ListView_InsertItem(hList, &lvi);
-
-		lvi.iItem = itc;
-		lvi.mask = LVIF_PARAM;
-		lpd = GetListParmData(itc);
-		lpd->type = ListParmData::Node;
-		lpd->node = *itnd;
-		lvi.lParam = (LPARAM)lpd;
-		ListView_SetItem(hList, &lvi);
-
-		UpdateListViewTorrentNodesDetail(hList, itc, *itnd);
-		itc++;
 	}
 	return 0;
 }
@@ -4217,23 +2150,3 @@ int TreeGroupShadow::SyncGroup()
 	return 0;
 }
 
-std::set<TreeParmData*> TreeItemParmDataHelper::parms;
-
-TreeParmData* TreeItemParmDataHelper::CreateTreeItemParmData(TreeParmData::TIPDTYPE type)
-{
-	TreeParmData* npd = new TreeParmData();
-	npd->ItemType = type;
-	parms.insert(npd);
-	return npd;
-}
-
-int TreeItemParmDataHelper::ClearTreeItemParmData()
-{
-	for (std::set<TreeParmData*>::iterator itpd = parms.begin()
-		; itpd != parms.end()
-		; itpd++) {
-		delete* itpd;
-	}
-	parms.clear();
-	return 0;
-}

@@ -162,6 +162,8 @@
     <ClInclude Include="CPanelWindow.h" />
     <ClInclude Include="CProfileData.h" />
     <ClInclude Include="CurlSession.h" />
+    <ClInclude Include="CViewListFrame.h" />
+    <ClInclude Include="CViewTreeFrame.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="SimpleVisualTrans.h" />
@@ -174,6 +176,8 @@
     <ClCompile Include="CPanelWindow.cpp" />
     <ClCompile Include="CProfileData.cpp" />
     <ClCompile Include="CurlSession.cpp" />
+    <ClCompile Include="CViewListFrame.cpp" />
+    <ClCompile Include="CViewTreeFrame.cpp" />
     <ClCompile Include="SimpleVisualTrans.cpp" />
     <ClCompile Include="TransAnalyzer.cpp" />
     <ClCompile Include="WindowView.cpp" />
