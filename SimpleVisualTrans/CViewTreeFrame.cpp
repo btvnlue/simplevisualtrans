@@ -169,7 +169,7 @@ HTREEITEM CViewTreeFrame::UpdateTreeViewTorrentDetailFiles(HTREEITEM hpnt, Torre
 		WCHAR wbuf[1024];
 		TVINSERTSTRUCT tvi = { 0 };
 		tvi.item.mask = TVIF_TEXT | TVIF_PARAM;
-		if (fnode->type == TorrentNodeFileNode::DIR) {
+		if (fnode->type == TorrentNodeFileNode::NODETYPE::DIR) {
 			std::set<TorrentNodeFileNode*> fls;
 			TorrentNodeHelper::GetNodeFileSet(fnode, fls);
 			wsprintf(wbuf, L"%s (%d)", fnode->name.c_str(), fls.size());
@@ -475,27 +475,73 @@ int CViewTreeFrame::ProcContextMenuTree(int xx, int yy)
 	return 0;
 }
 
+struct CBGroupNodeParm
+{
+	TorrentGroup* group;
+	TorrentNode* node;
+	CViewTreeFrame* self;
+	TreeGroupShadow* shadow;
+};
+
+int CViewTreeFrame::CBUpdateGroupNode(void* lparam)
+{
+	CBGroupNodeParm* gnp = (CBGroupNodeParm*)lparam;
+	HTREEITEM hti;
+
+	if (gnp) {
+		hti = gnp->self->UpdateTreeViewNodeItem(gnp->shadow, gnp->node);
+		if (hti) {
+			TorrentParmItems* ims = gnp->shadow->GetNodeParmItems(gnp->node);
+			gnp->self->UpdateTreeViewTorrentDetail(ims);
+		}
+
+		delete gnp;
+	}
+	return 0;
+}
+
+struct CBAnaGroupParm
+{
+	TreeGroupShadow* shadow;
+	CViewTreeFrame* self;
+};
+
+int CViewTreeFrame::CBOnGroupTorrent(bool finalcall, void* param, TorrentGroup* grp, TorrentNode* node)
+{
+	CBAnaGroupParm* agp = (CBAnaGroupParm*)param;
+	if (agp) {
+		if (finalcall) {
+			delete agp;
+		}
+		else {
+			CBGroupNodeParm* gnp = new CBGroupNodeParm();
+			gnp->group = grp;
+			gnp->node = node;
+			gnp->shadow = agp->shadow;
+			gnp->self = agp->self;
+
+			PostMessage(agp->self->hMain, WM_U_UITREEPROCMSG, (WPARAM)&CBUpdateGroupNode, (LPARAM)gnp);
+			//SendMessage(agp->self->hMain, WM_U_UITREEPROCMSG, (WPARAM)CBUpdateGroupNode, (LPARAM)gnp);
+		}
+	}
+
+	return 0;
+}
+
 void CViewTreeFrame::UpdateTreeViewGroup(TreeGroupShadow* gti)
 {
 	TVINSERTSTRUCT tis;
 	wchar_t tbuf[1024];
 	TorrentGroup* grp = gti->group;
 	TreeParmData* ntipd;
-	TorrentParmItems* ims;
 	std::map<unsigned long, HTREEITEM>::iterator ittt;
 	HTREEITEM hti;
-	TorrentNode* node;
 
-	for (std::map<unsigned long, TorrentNode*>::iterator ittn = grp->torrents.begin()
-		; ittn != grp->torrents.end()
-		; ittn++) {
-		node = ittn->second;
-		hti = UpdateTreeViewNodeItem(gti, node);
-		if (hti) {
-			ims = gti->GetNodeParmItems(node);
-			UpdateTreeViewTorrentDetail(ims);
-		}
-	}
+	CBAnaGroupParm* agp = new CBAnaGroupParm();
+	agp->self = this;
+	agp->shadow = gti;
+
+	analyzer->ItorateGroupTorrents(grp, CBOnGroupTorrent, agp);
 
 	TreeGroupShadow* ntg;
 	std::map<TorrentGroup*, TreeGroupShadow*>::iterator itgg;
@@ -624,3 +670,10 @@ int CViewTreeFrame::SelectTreeParentNode()
 	}
 	return 0;
 }
+
+//int CViewTreeFrame::ITreeCallBack::ProcessTreeUpdate(long cmd, long txn, void* wparm, void* lparm)
+//{
+//	int (*cbfunc)(void*, long, long) = (int(*)(void*, long, long))wparm;
+//	(*cbfunc)(lparm, txn, cmd);
+//	return 0;
+//}

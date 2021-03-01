@@ -338,8 +338,8 @@ int CALLBACK LVComp_Group(LPARAM lp1, LPARAM lp2, LPARAM lpsort)
 		break;
 	case 3:
 	{
-		size_t nd1s = nd1->torrents.size();
-		size_t nd2s = nd2->torrents.size();
+		size_t nd1s = nd1->GetTorrentsCount();
+		size_t nd2s = nd2->GetTorrentsCount();
 
 		icr = nd1s > nd2s ? 1 : (nd1s < nd2s ? -1 : 0);
 	}
@@ -1267,13 +1267,16 @@ int CViewListFrame::FreeTorrentDetailTitle()
 	return 0;
 }
 
+int CViewListFrame::CBUpdateGroupNode(bool, void*, TorrentGroup*, TorrentNode*)
+{
+	return 0;
+}
+
 int CViewListFrame::UpdateListViewTorrentNodes(TorrentGroup* grp)
 {
 	std::set<TorrentNode*> nodes;
 	ListParmData* lpd;
 	wchar_t wbuf[1024];
-
-	grp->GetNodes(nodes);
 
 	int itc = ListView_GetItemCount(hList);
 	LVITEM lvi = { 0 };
@@ -1426,7 +1429,7 @@ int CViewListFrame::UpdateListViewTorrentGroupData(HWND hlist, int iti, TorrentG
 	ListView_SetItemText(hlist, iti, itt, wbuf);
 	itt++;
 
-	wsprintf(wbuf, L"%d", nod->torrents.size());
+	wsprintf(wbuf, L"%d", nod->GetTorrentsCount());
 	ListView_SetItemText(hlist, iti, itt, wbuf);
 	itt++;
 

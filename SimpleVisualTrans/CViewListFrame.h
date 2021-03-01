@@ -61,6 +61,7 @@ public:
 		, TORRENTFILE
 		, NONE
 	} listContent;
+	std::map<TorrentNode*, int> nodeLocation;
 	CProfileData* profile;
 	TransAnalyzer* analyzer;
 	HWND hMain;
@@ -99,6 +100,7 @@ public:
 	void ListUpdateSessionTitle(SessionInfo* ssn);
 	void InitializeTorrentDetailTitle();
 	int FreeTorrentDetailTitle();
+	static int CBUpdateGroupNode(bool, void*, TorrentGroup*, TorrentNode*);
 	int UpdateListViewTorrentNodes(TorrentGroup* grp);
 	int UpdateListViewTorrentNodesDetail(HWND hlist, int iti, TorrentNode* nod);
 	int UpdateListViewGroups();

@@ -47,7 +47,7 @@ struct TorrentNodeFileNode {
 	bool check;
 	int priority = 0;
 	std::set<TorrentNodeFileNode*> sub;
-	enum NODETYPE {
+	enum class NODETYPE {
 		FILE
 		, DIR
 	} type;
@@ -113,7 +113,7 @@ struct TorrentNode
 class TorrentGroup
 {
 public:
-	std::map<unsigned long, TorrentNode*> torrents;
+	std::map<unsigned long, TorrentNode*> torrents_;
 	std::map<std::wstring, TorrentGroup*> subs;
 	std::wstring name;
 	TorrentGroup* parent;
@@ -128,7 +128,8 @@ public:
 	int addTorrents(TorrentNode* trt);
 	int addGroup(TorrentGroup* grp);
 	int updateSize();
-	int GetNodes(std::set<TorrentNode*>& nds);
+	//int GetNodes(std::set<TorrentNode*>& nds);
+	int GetTorrentsCount() const;
 	TorrentNode* getTorrent(unsigned long tid);
 	TorrentGroup* getGroup(const std::wstring& gname);
 	int removeTorrent(TorrentNode* trt);
@@ -201,5 +202,7 @@ public:
 	int groupTorrentTrackers();
 	std::wstring getTrackerName(const std::wstring& tck);
 	std::wstring PerformRemoteAddTorrent(const std::wstring turl);
+	int ItorateGroupTorrents(TorrentGroup* grp, int(*func)(bool, void*, TorrentGroup*, TorrentNode*), void* parm);
+	int AsyncGetGroupAllNodes(TorrentGroup* grp, int(*func)(bool, void*, TorrentGroup*, TorrentNode*), void* parm, int level);
 };
 

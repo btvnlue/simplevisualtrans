@@ -11,7 +11,8 @@
 #define WM_U_UPDATETORRENTGROUP WM_USER + 0x1236
 #define WM_U_UPDATESESSION WM_USER + 0x1237
 #define WM_U_UPDATETORRENTNODEFILE WM_USER + 0x1238
-#define WM_U_REFRESHTORRENTDETAIL WM_USER + 0xBBB
+#define WM_U_REFRESHTORRENTDETAIL WM_USER + 0x1BBB
+#define WM_U_UITREEPROCMSG WM_USER + 0x1AAA
 
 struct TreeParmData {
 	enum TIPDTYPE {
@@ -72,10 +73,26 @@ public:
 	static int ClearTreeItemParmData();
 };
 
+struct UITREEMSGDATA {
+	long txn;
+	long cmd;
+	int(*func)(void*, long, long);
+	void* lparam;
+};
+
 class CViewTreeFrame
 {
 	HWND hTree;
 public:
+
+	//class ITreeCallBack
+	//{
+	//public:
+	//	int ProcessTreeUpdate(long cmd, long txn, void* wparm, void* lparm);
+	//	virtual int ProcessTreeNotice(long cmd, long txn, int(*cbfunc)(void*, long, long), void* lparm) = 0;
+	//};
+
+	//ITreeCallBack* callback;
 	TransAnalyzer* analyzer;
 	HWND hMain;
 	TreeGroupShadow* torrentsViewOrgs;
@@ -96,6 +113,8 @@ public:
 	LRESULT ProcNotifyTree(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 	int TreeViewSelectItem(TorrentGroup* grp);
 	int ProcContextMenuTree(int xx, int yy);
+	static int CBUpdateGroupNode(void* lparam);
+	static int CBOnGroupTorrent(bool finalcall, void* param, TorrentGroup* grp, TorrentNode* node);
 	void UpdateTreeViewGroup(TreeGroupShadow* gti);
 	void UpdateViewTorrentGroup(TorrentGroup* grp);
 	HTREEITEM UpdateTreeViewNodeItem(TreeGroupShadow* tgs, TorrentNode* node);

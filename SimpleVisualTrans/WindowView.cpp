@@ -179,9 +179,14 @@ WindowView::~WindowView()
 	}
 
 	if (treeview) {
+		//if (treeview->callback) {
+		//	delete treeview->callback;
+		//	treeview->callback = NULL;
+		//}
 		delete treeview;
 		treeview = NULL;
 	}
+
 }
 
 int WindowView::ShowView()
@@ -349,7 +354,7 @@ int WindowView::PriorityTorrentFilesOnView(int prt)
 		int rdr = analyzer->PerformRemoteFileCheck(frp);
 		std::wstring wrt = analyzer->GetErrorString(rdr);
 		wchar_t wbuf[1024];
-		wsprintf(wbuf, L"Remote delete torrent [%s] files [%d] with result: [%s]", (*itnd)->name.c_str(), frp.fileIds.size(), wrt.c_str());
+		wsprintf(wbuf, L"Remote set torrent [%s] files [%d] with priority [%d] result: [%s]", (*itnd)->name.c_str(), frp.fileIds.size(), prt, wrt.c_str());
 		ViewLog(wbuf);
 	}
 	return 0;
@@ -844,6 +849,15 @@ LRESULT WindowView::WndProcInstance(HWND hWnd, UINT message, WPARAM wParam, LPAR
 					PostMessage(hWnd, WM_U_ADDNEWRESOURCE, (WPARAM)newres, TRUE);
 				}
 			}
+		}
+	}
+		break;
+	case WM_U_UITREEPROCMSG:
+	{
+		int(*func)(void*) = (int(*)(void*))wParam;
+		
+		if (func) {
+			(*func)((void*)lParam);
 		}
 	}
 		break;
@@ -1828,6 +1842,9 @@ int WindowView::CreateViewControls()
 	treeview = new CViewTreeFrame(htree);
 	treeview->analyzer = analyzer;
 	treeview->hMain = hWnd;
+	//TreeCallBack* tcb = new TreeCallBack();
+	//tcb->parent = this;
+	//treeview->callback = tcb;
 
 	splitTree->SetWindow(*treeview);
 	splitTree->SetWindow(*listview);
@@ -2150,3 +2167,21 @@ int TreeGroupShadow::SyncGroup()
 	return 0;
 }
 
+//int WindowView::ProcessUICallBackNotice(long cmd, long txn, int(*cbfunc)(void*, long, long), void* lparm)
+//{
+//	UIMSGDATA* umd = new UIMSGDATA();
+//	umd->cmd = cmd;
+//	umd->txn = cmd;
+//	umd->func = cbfunc;
+//	umd->lparam = lparm;
+//
+//	PostMessage(hWnd, WM_U_UIPROCMSG, (WPARAM)umd, 0);
+//
+//	return 0;
+//}
+//
+//int WindowView::TreeCallBack::ProcessTreeNotice(long cmd, long txn, int(*cbfunc)(void*, long, long), void* lparm)
+//{
+//	parent->ProcessUICallBackNotice(cmd, txn, cbfunc, lparm);
+//	return 0;
+//}

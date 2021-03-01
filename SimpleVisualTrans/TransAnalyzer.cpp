@@ -122,8 +122,8 @@ int ConvertUTFCode(const char* instr, std::wstring& wstr)
 int TransAnalyzer::cleanupTorrents()
 {
 	TorrentNode* node;
-	for (std::map<unsigned long, TorrentNode*>::iterator ittn = fulllist->torrents.begin()
-		; ittn != fulllist->torrents.end()
+	for (std::map<unsigned long, TorrentNode*>::iterator ittn = fulllist->torrents_.begin()
+		; ittn != fulllist->torrents_.end()
 		; ittn++) {
 		node = ittn->second;
 		TorrentNodeHelper::DeleteTorrentNode(node);
@@ -883,8 +883,8 @@ void TransAnalyzer::extractTorrentObject(rapidjson::GenericValue<rapidjson::UTF1
 
 	if (trtn.HasMember(L"id") && trtn[L"id"].IsInt()) {
 		iid = trtn[L"id"].GetUint();
-		if (fulllist->torrents.find(iid) != fulllist->torrents.end()) {
-			torrent = fulllist->torrents[iid];
+		if (fulllist->torrents_.find(iid) != fulllist->torrents_.end()) {
+			torrent = fulllist->torrents_[iid];
 		}
 		else {
 			torrent = new TorrentNode();
@@ -975,8 +975,10 @@ void TransAnalyzer::extractTorrentObject(rapidjson::GenericValue<rapidjson::UTF1
 				size_t nps;
 				torrent->files.node = new TorrentNodeFileNode();
 				torrent->files.node->name = torrent->path;
-				torrent->files.node->type = TorrentNodeFileNode::DIR;
+				torrent->files.node->type = TorrentNodeFileNode::NODETYPE::DIR;
 				torrent->files.node->node = torrent;
+				torrent->files.node->priority = 0;
+				torrent->files.node->check = true;
 				TorrentNodeFileNode* npn;
 				TorrentNodeFileNode* nfn;
 				for (int ii = 0; ii < torrent->files.count; ii++) {
@@ -997,7 +999,7 @@ void TransAnalyzer::extractTorrentObject(rapidjson::GenericValue<rapidjson::UTF1
 						nfn->name = fnn;
 						nfn->parent = npn;
 						npn->sub.insert(nfn);
-						nfn->type = TorrentNodeFileNode::FILE;
+						nfn->type = TorrentNodeFileNode::NODETYPE::FILE;
 						nfn->path = TorrentNodeHelper::GetFileNodePath(nfn);
 						nfn->file = &torrent->files.file[ii];
 						ltt.QuadPart = GetTickCount64();
@@ -1073,8 +1075,8 @@ int TransAnalyzer::groupTorrentTrackers()
 {
 	TorrentGroup* ntg;
 	std::wstring gtname;
-	for (std::map<unsigned long, TorrentNode*>::iterator ittn = fulllist->torrents.begin()
-		; ittn != fulllist->torrents.end()
+	for (std::map<unsigned long, TorrentNode*>::iterator ittn = fulllist->torrents_.begin()
+		; ittn != fulllist->torrents_.end()
 		; ittn++) {
 		for (unsigned int ii = 0; ii < ittn->second->trackerscount; ii++) {
 			std::wstring& tck = ittn->second->trackers[ii];
@@ -1183,6 +1185,37 @@ std::wstring TransAnalyzer::PerformRemoteAddTorrent(const std::wstring turl)
 	return rms;
 }
 
+int TransAnalyzer::ItorateGroupTorrents(TorrentGroup* grp, int(*func)(bool, void*, TorrentGroup*, TorrentNode*), void* parm)
+{
+	for (std::map<unsigned long, TorrentNode*>::iterator ittn = grp->torrents_.begin()
+		; ittn != grp->torrents_.end()
+		; ittn++) {
+		(*func)(false, parm, grp, ittn->second);
+	}
+	(*func)(true, parm, grp, NULL);
+	return 0;
+}
+
+int TransAnalyzer::AsyncGetGroupAllNodes(TorrentGroup* grp, int(*func)(bool, void*, TorrentGroup*, TorrentNode*), void* parm, int level = 0)
+{
+	for (std::map<unsigned long, TorrentNode*>::iterator ittn = grp->torrents_.begin()
+		; ittn != grp->torrents_.end()
+		; ittn++) {
+		(*func)(false, parm, grp, ittn->second);
+	}
+
+	for (std::map<std::wstring, TorrentGroup*>::iterator itsb = grp->subs.begin()
+		; itsb != grp->subs.end()
+		; itsb++) {
+		AsyncGetGroupAllNodes(itsb->second, func, parm, level + 1);
+	}
+
+	if (level == 0) {
+		(*func)(true, parm, grp, NULL);
+	}
+	return 0;
+}
+
 TorrentGroup::TorrentGroup()
 	: size(0)
 	, parent(NULL)
@@ -1213,8 +1246,8 @@ TorrentGroup::~TorrentGroup()
 
 int TorrentGroup::addTorrents(TorrentNode* trt)
 {
-	if (torrents.find(trt->id) == torrents.end()) {
-		torrents[trt->id] = trt;
+	if (torrents_.find(trt->id) == torrents_.end()) {
+		torrents_[trt->id] = trt;
 		size += trt->size;
 	}
 	return 0;
@@ -1237,8 +1270,8 @@ int TorrentGroup::updateSize()
 	size = 0;
 	upspeed = 0;
 	downspeed = 0;
-	for (std::map<unsigned long, TorrentNode*>::iterator itts = torrents.begin()
-		; itts != torrents.end()
+	for (std::map<unsigned long, TorrentNode*>::iterator itts = torrents_.begin()
+		; itts != torrents_.end()
 		; itts++) {
 		size += itts->second->size;
 		upspeed += itts->second->upspeed;
@@ -1263,8 +1296,8 @@ int TorrentGroup::updateSize()
 
 int TorrentGroup::GetNodes(std::set<TorrentNode*>& nds)
 {
-	for (std::map<unsigned long, TorrentNode*>::iterator ittn = torrents.begin()
-		; ittn != torrents.end()
+	for (std::map<unsigned long, TorrentNode*>::iterator ittn = torrents_.begin()
+		; ittn != torrents_.end()
 		; ittn++) {
 		nds.insert(ittn->second);
 	}
@@ -1276,11 +1309,16 @@ int TorrentGroup::GetNodes(std::set<TorrentNode*>& nds)
 	return 0;
 }
 
+int TorrentGroup::GetTorrentsCount() const
+{
+	return torrents_.size();
+}
+
 TorrentNode* TorrentGroup::getTorrent(unsigned long tid)
 {
 	TorrentNode* fnd = NULL;
-	std::map<unsigned long, TorrentNode*>::iterator ittt = torrents.begin();
-	BOOL keepseek = ittt != torrents.end();
+	std::map<unsigned long, TorrentNode*>::iterator ittt = torrents_.begin();
+	BOOL keepseek = ittt != torrents_.end();
 
 	while (keepseek) {
 		if (ittt->second->id == tid) {
@@ -1289,7 +1327,7 @@ TorrentNode* TorrentGroup::getTorrent(unsigned long tid)
 		}
 		else {
 			ittt++;
-			keepseek = ittt != torrents.end() ? keepseek : FALSE;
+			keepseek = ittt != torrents_.end() ? keepseek : FALSE;
 		}
 	}
 
@@ -1335,17 +1373,17 @@ TorrentGroup* TorrentGroup::getGroup(const std::wstring& gname)
 
 int TorrentGroup::removeTorrent(TorrentNode* trt)
 {
-	std::map<unsigned long, TorrentNode*>::iterator ittt = torrents.begin();
-	BOOL keepseek = ittt != torrents.end();
+	std::map<unsigned long, TorrentNode*>::iterator ittt = torrents_.begin();
+	BOOL keepseek = ittt != torrents_.end();
 
 	while (keepseek) {
 		if (ittt->second == trt) {
-			torrents.erase(ittt);
+			torrents_.erase(ittt);
 			keepseek = FALSE;
 		}
 		else {
 			ittt++;
-			keepseek = ittt != torrents.end() ? keepseek : FALSE;
+			keepseek = ittt != torrents_.end() ? keepseek : FALSE;
 		}
 	}
 
@@ -1425,7 +1463,7 @@ TorrentNodeFileNode* TorrentNodeHelper::GetPathNode(TorrentNodeFileNode* node, s
 				rtn = new TorrentNodeFileNode();
 				rtn->parent = ptn;
 				ptn->sub.insert(rtn);
-				rtn->type = TorrentNodeFileNode::DIR;
+				rtn->type = TorrentNodeFileNode::NODETYPE::DIR;
 				rtn->name = path;
 				rtn->node = node->node;
 			}
@@ -1439,7 +1477,7 @@ TorrentNodeFileNode* TorrentNodeHelper::GetPathNode(TorrentNodeFileNode* node, s
 
 int TorrentNodeHelper::GetNodeFileSet(TorrentNodeFileNode* file, std::set<TorrentNodeFileNode*>& fileset)
 {
-	if (file->type == TorrentNodeFileNode::FILE) {
+	if (file->type == TorrentNodeFileNode::NODETYPE::FILE) {
 		fileset.insert(file);
 	}
 	for (std::set<TorrentNodeFileNode*>::iterator itfn = file->sub.begin()
@@ -1457,7 +1495,7 @@ std::wstring TorrentNodeHelper::GetFileNodePath(TorrentNodeFileNode* file)
 	if (file->parent) {
 		wss << GetFileNodePath(file->parent);
 	}
-	if (file->type == TorrentNodeFileNode::DIR) {
+	if (file->type == TorrentNodeFileNode::NODETYPE::DIR) {
 		if (wss.str().length() > 0) {
 			wss << L'/';
 		}
