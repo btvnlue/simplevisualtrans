@@ -1,6 +1,7 @@
 #include "TorrentNode.h"
 #include <Windows.h>
 #include <time.h>
+#include "Utilities.h"
 
 int FormatNumberView(wchar_t* buf, size_t bufsz, unsigned __int64 size)
 {
@@ -158,11 +159,6 @@ TorrentNode::TorrentNode()
 
 TorrentNode::~TorrentNode()
 {
-	if (piecesdata.items) {
-		delete[] piecesdata.items;
-		piecesdata.count = 0;
-		piecesdata.items = nullptr;
-	}
 	CleanTrackers();
 }
 
@@ -174,7 +170,8 @@ int convertPiecesData(std::wstring& pcs, unsigned char* buf, long bufsz, long pi
 		int sbt = 0;
 		CryptStringToBinary(pcs.c_str(), pcs.length(), CRYPT_STRING_BASE64, NULL, &datsize, NULL, &dfg);
 		if (datsize > 0) {
-			unsigned char* dff = (unsigned char*)malloc(datsize);
+			//unsigned char* dff = (unsigned char*)malloc(datsize);
+			unsigned char* dff = (unsigned char*)BufferedJsonAllocator::GetInstance()->Malloc(datsize);
 			if (dff) {
 				BOOL btn = CryptStringToBinary(pcs.c_str(), pcs.length(), CRYPT_STRING_BASE64, dff, &datsize, NULL, &dfg);
 				long bitcnt = datsize * 8;
@@ -205,23 +202,7 @@ int convertPiecesData(std::wstring& pcs, unsigned char* buf, long bufsz, long pi
 						buf[ii] = (unsigned char)(pctvvv * 0xFF / bitidxcnt);
 					}
 				}
-				//if (node->piecesdata.count == 0) {
-				//	node->piecesdata.items = new unsigned char[dsz * 8];
-				//	node->piecesdata.count = dsz * 8;
-				//}
-
-				//if (node->piecesdata.count == dsz * 8) {
-				//	sbt = 0;
-				//	for (DWORD ii = 0; ii < dsz; ii++) {
-				//		cbt = dff[ii];
-				//		for (int jj = 0; jj < 8; jj++) {
-				//			node->piecesdata.items[sbt] = cbt & 0x80 ? 1 : 0;
-				//			cbt <<= 1;
-				//			sbt++;
-				//		}
-				//	}
-				//}
-				free(dff);
+				//free(dff);
 			}
 		}
 	}
@@ -245,6 +226,7 @@ int TorrentNode::Copy(TorrentNode * node)
 	STATED_COPY(node, piececount, TTSTATE_BASEINFO);
 	STATED_COPY(node, piecesize, TTSTATE_BASEINFO);
 	STATED_STR_COPY(node, _path, 256, TTSTATE_BASEINFO);
+	STATED_COPY(node, magnet, TTSTATE_BASEINFO);
 
 	STATED_COPY(node, downloaded, TTSTATE_TRANINFO);
 	STATED_COPY(node, uploaded, TTSTATE_TRANINFO);
@@ -257,52 +239,55 @@ int TorrentNode::Copy(TorrentNode * node)
 	STATED_COPY(node, stalled, TTSTATE_TRANINFO);
 	STATED_COPY(node, valid, TTSTATE_TRANINFO);
 	STATED_COPY(node, status, TTSTATE_TRANINFO);
+	STATED_COPY(node, recheck, TTSTATE_TRANINFO);
 	STATED_STR_COPY(node, _error, 1024, TTSTATE_TRANINFO);
 
 	STATED_COPY(node, downspeed, TTSTATE_SPEED);
 	STATED_COPY(node, upspeed, TTSTATE_SPEED);
 
-	bool keepseek;
-	int ii = 0;
-	bool trackermatch = true;
-	bool trackerfound;
+	//bool keepseek;
+	//int ii = 0;
+	//bool trackermatch = true;
+	//bool trackerfound;
 
-	if (_trackers.items != node->_trackers.items) {
-		trackermatch = false;
-		keepseek = false;
-	}
-	keepseek = ii < (int)node->_trackers.count ? keepseek : false;
+	//if (_trackers.count != node->_trackers.count) {
+	//	trackermatch = false;
+	//	keepseek = false;
+	//}
+	//keepseek = ii < (int)node->_trackers.count ? keepseek : false;
 
-	while (keepseek) { // find every tracker in update
-		trackerfound = false;
-		for (int kk = 0; kk < (int)_trackers.count; kk++) {
-			if (node->_trackers.items[ii] == _trackers.items[kk]) {
-				trackerfound = true;
-			}
-		}
+	//while (keepseek) { // find every tracker in update
+	//	trackerfound = false;
+	//	for (int kk = 0; kk < (int)_trackers.count; kk++) {
+	//		if (node->_trackers.items[ii] == _trackers.items[kk]) {
+	//			trackerfound = true;
+	//		}
+	//	}
 
-		if (trackerfound == false) {
-			trackermatch = false;
-			keepseek = false;
-		}
+	//	if (trackerfound == false) {
+	//		trackermatch = false;
+	//		keepseek = false;
+	//	}
 
-		ii++;
-		keepseek = ii < (int)node->_trackers.count ? keepseek : false;
-	}
+	//	ii++;
+	//	keepseek = ii < (int)node->_trackers.count ? keepseek : false;
+	//}
 
-	if (trackermatch == false) {
-		SetState(TTSTATE_BASEINFO);
-		if (_trackers.count > 0) {
-			delete[] _trackers.items;
-		}
-		_trackers.count = node->_trackers.count;
-		_trackers.items = new TrackerCY*[_trackers.count];
-		for (int ii = 0; ii < (int)node->_trackers.count; ii++) {
-			_trackers.items[ii] = node->_trackers.items[ii];
-		}
-	}
+	//if (trackermatch == false) {
+	//	SetState(TTSTATE_BASEINFO);
+	//	if (_trackers.count > 0) {
+	//		delete[] _trackers.items;
+	//	}
+	//	_trackers.count = node->_trackers.count;
+	//	_trackers.items = new TrackerCY*[_trackers.count];
+	//	for (int ii = 0; ii < (int)node->_trackers.count; ii++) {
+	//		_trackers.items[ii] = node->_trackers.items[ii];
+	//	}
+	//}
 	return 0;
 }
+
+
 
 int TorrentNode::DispRefresh()
 {
@@ -315,8 +300,9 @@ int TorrentNode::DispRefresh()
 	FormatViewStatus(dispstatus, 1024, status);
 
 	if ((status == TTS_VERIFY) || (status == TTS_PENDING)) {
-		FormatDoublePercentage(dispratio, 1024, 100.0 - (size > 0 ? 100.0 * leftsize / size : 0));
-	} else {
+		FormatDoublePercentage(dispratio, 1024, recheck * 100);
+	}
+	else {
 		FormatDoublePercentage(dispratio, 1024, ratio * 100);
 	}
 	FormatIntegerDate(dispadddate, 1024, adddate);
@@ -325,7 +311,7 @@ int TorrentNode::DispRefresh()
 	FormatNumberView(dispuploaded, 1024, uploaded);
 	FormatIntegerDate(dispdonedate, 1024, donedate);
 	FormatNumberBKMG(disppiecesize, 1024, piecesize);
-	
+
 	FormatNumberView(ttdispbuf, 1024, leftsize);
 	FormatDoublePercentage(ttdispbuf + 512, 1024, size > 0 ? 100.0 * leftsize / size : 0);
 	wsprintf(displeft, L"%s (%s)", ttdispbuf, ttdispbuf + 512);
@@ -337,23 +323,27 @@ int TorrentNode::DispRefresh()
 	////////////////////////////////////
 	// refresh pieces data
 	if (piecesdata.items == NULL) {
-		piecesdata.count = 1024;
-		piecesdata.items = new unsigned char[1024];
+		piecesdata.count = sizeof(_disppieces);
+		piecesdata.items = _disppieces;
 	}
 	convertPiecesData(pieces, piecesdata.items, piecesdata.count, piececount);
+
+	if (__trackers.size() > 0) {
+		wsprintf(disptracker, L"%04d: %s", (*__trackers.begin())->id, (*__trackers.begin())->name.c_str());
+	}
 	return 0;
 }
 
 int TorrentNode::CleanTrackers()
 {
-	if (rawtrackers.count > 0) {
-		delete[] rawtrackers.items;
-		rawtrackers.count = 0;
-	}
-	if (_trackers.count > 0) {
-		delete[] _trackers.items;
-		_trackers.count = 0;
-	}
+	//if (rawtrackers.count > 0) {
+	//	delete[] rawtrackers.items;
+	//	rawtrackers.count = 0;
+	//}
+	//if (_trackers.count > 0) {
+	//	delete[] _trackers.items;
+	//	_trackers.count = 0;
+	//}
 
 	return 0;
 }
@@ -363,6 +353,7 @@ ViewNode::ViewNode()
 	, torrent(NULL)
 	, valid(true)
 	, tracker(NULL)
+	, file(NULL)
 {
 }
 
@@ -378,7 +369,7 @@ ViewNode::~ViewNode()
 
 long ViewNode::vnodeidx = 0;
 
-ViewNode * ViewNode::NewViewNode(int vnt)
+ViewNode * ViewNode::NewViewNode(ViewNodeType vnt)
 {
 	ViewNode* vnd = new ViewNode();
 	vnd->id = vnodeidx++;
@@ -436,7 +427,21 @@ int ViewNode::GetAllTorrentsViewNode(std::set<ViewNode*>& tts)
 	return 0;
 }
 
-int ViewNode::GetType()
+int ViewNode::GetAllTypeNode(ViewNodeType vnt, std::set<ViewNode*>& vns)
+{
+	if (type == vnt) {
+		vns.insert(this);
+	}
+	for (std::list<ViewNode*>::iterator itvn = nodes.begin();
+		itvn != nodes.end();
+		itvn++) {
+		(*itvn)->GetAllTypeNode(vnt, vns);
+	}
+
+	return 0;
+}
+
+ViewNodeType ViewNode::GetType()
 {
 	return type;
 }
@@ -486,4 +491,170 @@ ViewNode * ViewNode::GetTracker(int id)
 	}
 
 	return tkn;
+}
+
+ViewNode * ViewNode::GetFilesNode()
+{
+	ViewNode* tkn = NULL;
+	for (std::list<ViewNode*>::iterator itvn = nodes.begin();
+		itvn != nodes.end();
+		itvn++) {
+		if ((*itvn)->GetType() == VNT_FILEPATH) {
+			tkn = *itvn;
+		}
+	}
+
+	return tkn;
+}
+
+ViewNode * ViewNode::GetRoot()
+{
+	ViewNode *rtn = parent ? parent->GetRoot() : this;
+	return rtn;
+}
+
+
+wchar_t TorrentFileNode::pathch = L'/';
+
+int TorrentFileNode::Add(TorrentFileNode * fnd)
+{
+	if (fnd) {
+		nodes[fnd->id] = fnd;
+		fnd->parent = this;
+	}
+	return 0;
+}
+
+TorrentFileNode * TorrentFileNode::GetPathNode(wchar_t * path)
+{
+	wchar_t sepch = L'/';
+	std::wstring fpt;
+	std::wstring ppt;
+	wchar_t * pch = wcschr(path, sepch);
+
+	// ppt := first part of path, before 1st '/'
+	// fpt := last part of path
+	if (pch) {
+		fpt = pch + 1;
+		*pch = 0;
+		ppt = path;
+	}
+	else {
+		ppt = path;
+	}
+
+
+	TorrentFileNode* tpn = nullptr;
+	if (ppt.length() > 0) {
+		for (std::map<long, TorrentFileNode*>::iterator itfn = nodes.begin();
+			itfn != nodes.end();
+			itfn++) {
+			if (itfn->second->name.compare(ppt) == 0) {
+				tpn = itfn->second;
+			}
+		}
+		if (tpn == nullptr) {
+			tpn = new TorrentFileNode();
+			tpn->id = GetPathId();
+			tpn->name = ppt;
+			this->Add(tpn);
+		}
+	}
+	else {
+		tpn = this;
+	}
+
+
+	if (tpn) {
+		if (fpt.length() > 0) {
+			wchar_t * tpw = new wchar_t[fpt.length() + 1];
+			wcscpy_s(tpw, fpt.length() + 1, fpt.c_str());
+			tpn = tpn->GetPathNode(tpw);
+			delete tpw;
+		}
+	}
+	return tpn;
+}
+
+int TorrentFileNode::Path(wchar_t * pbuf)
+{
+	if (parent) {
+		parent->Path(pbuf);
+	}
+	if (IsPath()) {
+		wchar_t pbb[2] = { pathch, 0 };
+		wcscat_s(pbuf, 1024, pbb);
+		wcscat_s(pbuf, 1024, name.c_str());
+	}
+	return 0;
+}
+
+int TorrentFileNode::UpdateDisp()
+{
+	if (disppath[0] == 0) {
+		Path(disppath);
+	}
+	FormatNumberView(dispsize, 30, size);
+	FormatNumberBKMG(dispbkmg, 20, size);
+	wcscpy_s(dispname, 128, name.c_str());
+	wsprintf(dispid, L"%06d", id);
+
+	wsprintf(disphas, L"%c", wanted == 0 ? L'X' : L'O');
+	wsprintf(disppr, L"%c", priority > 0 ? L'H' : (priority < 0 ? L'L' : L'-'));
+
+	return 0;
+}
+
+int TorrentFileNode::UpdateStat()
+{
+	if (count >= 0) {
+		count = 0;
+		size = 0;
+		pathcount = 0;
+		for (std::map<long, TorrentFileNode*>::iterator itfn = nodes.begin();
+			itfn != nodes.end();
+			itfn++) {
+			itfn->second->UpdateStat();
+			size += itfn->second->size;
+			count += (itfn->second->IsPath()) ? itfn->second->count : 1;
+			pathcount += itfn->second->IsPath() ? 1 : 0;
+		}
+	}
+	UpdateDisp();
+	return 0;
+}
+
+TorrentFileNode * TorrentFileNode::GetFile(long fid)
+{
+	TorrentFileNode* tfn = NULL;
+	bool keepseek;
+	std::map<long, TorrentFileNode*>::iterator itff = nodes.find(fid);
+	if (itff == nodes.end()) {
+		itff = nodes.begin();
+		keepseek = itff != nodes.end();
+		while (keepseek) {
+			if (itff->second->IsPath()) {
+				tfn = itff->second->GetFile(fid);
+				keepseek = tfn == NULL;
+			}
+			itff++;
+			keepseek = itff == nodes.end() ? false : keepseek;
+		}
+	}
+	else {
+		tfn = itff->second;
+	}
+	return tfn;
+}
+
+long TorrentFileNode::GetPathId()
+{
+	long pid = pathid;
+	if (parent) {
+		pid = parent->GetPathId();
+	}
+	else {
+		pid = pathid--;
+	}
+	return pid;
 }

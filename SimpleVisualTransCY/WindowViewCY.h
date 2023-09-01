@@ -22,6 +22,7 @@ class WindowViewCY
 	HWND hLog;
 	HWND hTree;
 	HWND hList;
+	HWND hInput;
 	HBRUSH hbGreen;
 	HBRUSH hbDarkGreen;
 	HBRUSH hbRed;
@@ -31,6 +32,7 @@ class WindowViewCY
 	CSplitWnd* splitMain;
 	CSplitWnd* splitContent;
 	CSplitWnd* splitView;
+	CSplitWnd* splitInput;
 	CPanelWindow* panel;
 	ViewManager* view;
 	bool clipboardEnabled;
@@ -57,7 +59,9 @@ class WindowViewCY
 	int TreeCleanUp();
 
 	LRESULT ListProcessNotify(LPARAM lParam);
-	int LogDrawItems(LPDRAWITEMSTRUCT dis);
+	LRESULT InputProcessNotify(LPARAM lParam);
+
+	int DrawListItemLog(LPDRAWITEMSTRUCT dis);
 
 	IUIFramework* ribbonFramework;
 public:

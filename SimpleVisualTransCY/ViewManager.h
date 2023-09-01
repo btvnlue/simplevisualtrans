@@ -43,6 +43,15 @@ public:
 #define LISTSORT_STATUS 5
 #define LISTSORT_RATIO 6
 #define LISTSORT_LOCATION 7
+#define LISTSORT_TRACKER 8
+#define LISTSORT_ERROR 9
+
+#define LISTFILESORT_ID 0
+#define LISTFILESORT_HAS 1
+#define LISTFILESORT_PR 2
+#define LISTFILESORT_NAME 3
+#define LISTFILESORT_PATH 4
+#define LISTFILESORT_SIZE 5
 
 #define TNP_ID 0
 #define TNP_NAME 1
@@ -70,13 +79,14 @@ public:
 
 };
 
-#define VLI_REQUEST 0
-#define VLI_REFRESH 1
-#define VLI_RESULT 2
-#define VLI_VIEWCHANGE 3
-#define VLI_DELETENODE 4
-#define VLI_COMMITNODE 5
-#define VLI_FINALCOUNT 6 // the last#, for view update/setcount
+#define LTV_REQUEST 0
+#define LTV_REFRESH 1
+#define LTV_RESULT 2
+#define LTV_VIEWCHANGE 3
+#define LTV_DELETENODE 4
+#define LTV_COMMITNODE 5
+#define LTV_COMMENTMESSAGE 6
+#define LTV_FINALCOUNT 7 // the last#, for view update/setcount
 
 struct ViewLogItem
 {
@@ -102,6 +112,7 @@ public:
 	HWND hList;
 	HWND hLog;
 	HWND hWnd;
+	HWND hInput;
 	ViewNode* clipboardRoot;
 	TransmissionProfile* defaultprofile;
 	ItemArray<ViewLogItem*> log;
@@ -115,17 +126,29 @@ public:
 	int PutCommand(ViewCommand* cmd);
 	int ViewUpdateProfileTorrent(TransmissionProfile *prof, long tid);
 	int ViewUpdateInvalidViewNode(ViewNode* vnd);
-	int RefreshProfiles();
+	int RefreshCurrentNode();
 	
 	int ChangeSelectedViewNode(ViewNode* vnd);
 	int LogToView(int logid, const std::wstring& logmsg);
-	int TimerRefreshTorrent(TransmissionProfile* prof);
+	//int TimerRefreshTorrent(TransmissionProfile* prof);
 	int ProcessClipboardEntry();
+	int SelectClipboardRoot();
 	int ViewUpdateViewNode(ViewNode* vnd);
 	int AddLinkByDrop(WCHAR* pth);
 	int ViewCommitTorrents(int delay);
 	int ViewDeleteContent(BOOL withfiles);
+	int ViewPauseTorrent(BOOL dopause);
+	int ViewVerifyTorrent();
+	int ViewSetLocation();
 	int GetSelectedViewNodes(std::set<ViewNode*>& vds);
+	int ProcessInputCommand();
+	int PrcessInputCommandSetLocation(std::vector<std::wstring>& cmds);
+	TransmissionProfile* GetCurrentProfile();
+	int FullRefreshProfileNodes(TransmissionProfile* prof);
+	int RefreshProfileNodeDetail(TransmissionProfile* prof, long tid);
+	int RefreshProfileStatus(TransmissionProfile* prof);
+	TransmissionProfile* GetViewNodeProfile(ViewNode* vnd);
+	int ShowContextMenu(int xx, int yy);
 
 	/////////////////////////////////////////////////////////
 	// Tree section for treeview update
@@ -135,6 +158,8 @@ public:
 	HTREEITEM TreeUpdateViewNode(ViewNode* vnd);
 	int TreeMoveParenetViewNode();
 	int TreeExpandItem(HTREEITEM hitem);
+	int TreeSortTorrentGroup(HTREEITEM hitem);
+	int ViewSortProfileTotal(TransmissionProfile* prof);
 
 	/////////////////////////////////////////////////////////
 	// List section for listview update
@@ -143,16 +168,19 @@ public:
 	ViewNode* currentnode;
 	int listsortindex;
 	bool listsortdesc;
-	std::map<int, std::wstring> tnpnames;
-	std::map<int, std::wstring> tnpvalues;
+	//std::map<int, std::wstring> tnpnames;
+	//std::map<int, std::wstring> tnpvalues;
+	std::vector<std::pair<std::wstring, std::wstring>> tnpdisp;
 
 	int ListClearContent();
-	int ListSwichContent();
+	int ListSwitchContent();
 	int ListSortTorrents(std::vector<ViewNode*>& tns, int sidx, bool asc);
+	int ListSortFiles(std::vector<ViewNode*>& tns, int sidx, bool asc);
 	int ListUpdateViewNode(ViewNode* vnd);
 	int ListSortTorrentGroup(int sidx);
-	int ListBuildTorrentNodeContent(ViewNode* vnd);
+	int ListBuildViewNodeContent(ViewNode* vnd);
 	int ListBuildClipboardContent(ViewNode* vnd);
+	int ListBuildFileContent(ViewNode* vnd);
 	int ListUpdateViewNodeInvalid(ViewNode* vnd);
 	int ListGetSelectedViewNodes(std::set<ViewNode*>& vds);
 };

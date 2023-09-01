@@ -346,7 +346,7 @@ int CSplitWnd::ProcSize()
 			::MoveWindow(hRight, 0, rct.bottom - fixedSize, rct.right, fixedSize, FALSE);
 		}
 		if (hLeft) {
-			::MoveWindow(hLeft, 0, 0, rct.right - rct.left, rct.bottom - fixedSize, FALSE);
+			::MoveWindow(hLeft, 0, 0, rct.right - rct.left, rct.bottom - fixedSize - 1, FALSE);
 		}
 		break;
 	case DOCKTOP:
@@ -355,7 +355,7 @@ int CSplitWnd::ProcSize()
 			fixedSize = wrct.bottom - wrct.top;
 		}
 		if (hLeft) {
-			::MoveWindow(hLeft, 0, 0, rct.right, fixedSize, FALSE);
+			::MoveWindow(hLeft, 0, 0, rct.right, fixedSize - 1, FALSE);
 		}
 		if (hRight) {
 			::MoveWindow(hRight, 0, fixedSize, rct.right - rct.left, rct.bottom - fixedSize, FALSE);

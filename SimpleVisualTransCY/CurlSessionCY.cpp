@@ -1,7 +1,8 @@
 #include "CurlSessionCY.h"
 #include "TransmissionProfile.h"
+#include "Utilities.h"
 
-#include <Windows.h>
+//#include <Windows.h>
 #include <sstream>
 
 #define XSESSIONHTTPHEAD L"X-Transmission-Session-Id"
@@ -52,7 +53,8 @@ CurlSessionCY::~CurlSessionCY()
 	curl_global_cleanup();
 
 	header.clear();
-	response.clear();
+	v_response.clear();
+	sz_response = 0;
 }
 
 CurlSessionCY * CurlSessionCY::GetInstance()
@@ -129,17 +131,20 @@ int CurlSessionCY::GetSessionToken(const std::wstring & url, const std::wstring 
 		size_t xallz;
 
 		xallz = url.length() * sizeof(wchar_t) + 1;
-		char* ccurl = (char*)malloc(xallz);
+		//char* ccurl = (char*)malloc(xallz);
+		char* ccurl = (char*)BufferedJsonAllocator::GetInstance()->Malloc(xallz);
 		rbt = ::WideCharToMultiByte(CP_ACP, 0, url.c_str(), url.length(), ccurl, xallz, NULL, &udc);
 		ccurl[rbt] = 0;
 
 		xallz = username.length() * sizeof(wchar_t) + 1;
-		char* ccuser = (char*)malloc(xallz);
+		//char* ccuser = (char*)malloc(xallz);
+		char* ccuser = (char*)BufferedJsonAllocator::GetInstance()->Malloc(xallz);
 		rbt = ::WideCharToMultiByte(CP_ACP, 0, username.c_str(), username.length(), ccuser, xallz, NULL, &udc);
 		ccuser[rbt] = 0;
 
 		xallz = passwd.length() * sizeof(wchar_t) + 1;
-		char* ccpasswd = (char*)malloc(xallz);
+		//char* ccpasswd = (char*)malloc(xallz);
+		char* ccpasswd = (char*)BufferedJsonAllocator::GetInstance()->Malloc(xallz);
 		rbt = ::WideCharToMultiByte(CP_ACP, 0, passwd.c_str(), passwd.length(), ccpasswd, xallz, NULL, &udc);
 		ccpasswd[rbt] = 0;
 
@@ -148,24 +153,26 @@ int CurlSessionCY::GetSessionToken(const std::wstring & url, const std::wstring 
 		DWORD b64sz;
 		BOOL btn = CryptBinaryToString((unsigned char*)ccuserpwd, xallz, CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF, NULL, &b64sz);
 		if (b64sz > 0) {
-			TCHAR* b64str = (TCHAR*)malloc(b64sz * sizeof(TCHAR));
-			char* ccb64str = (char*)malloc(b64sz + 1);
+			//TCHAR* b64str = (TCHAR*)malloc(b64sz * sizeof(TCHAR));
+			//char* ccb64str = (char*)malloc(b64sz + 1);
+			TCHAR* b64str = (TCHAR*)BufferedJsonAllocator::GetInstance()->Malloc(b64sz * sizeof(TCHAR));
+			char* ccb64str = (char*)BufferedJsonAllocator::GetInstance()->Malloc(b64sz + 1);
 			if (b64str) {
 				btn = CryptBinaryToString((unsigned char*)ccuserpwd, xallz, CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF, b64str, &b64sz);
 				if (btn) {
-					rbt = ::WideCharToMultiByte(CP_ACP, 0, b64str, b64sz*2, ccb64str, b64sz + 1, NULL, &udc);
+					rbt = ::WideCharToMultiByte(CP_ACP, 0, b64str, b64sz * 2, ccb64str, b64sz + 1, NULL, &udc);
 					sprintf_s(ccuserpwd, 1024, "Basic %s", ccb64str);
 				}
 			}
-			free(ccb64str);
-			free(b64str);
+			//free(ccb64str);
+			//free(b64str);
 		}
 
 
 		SetSessionCommonParms(core);
 		curl_easy_setopt(core, CURLOPT_POST, 1);
 		curl_easy_setopt(core, CURLOPT_URL, ccurl);
-		curl_easy_setopt(core, CURLOPT_TIMEOUT, 15);
+		curl_easy_setopt(core, CURLOPT_TIMEOUT, 90);
 		curl_easy_setopt(core, CURLOPT_HEADERDATA, this);
 		curl_easy_setopt(core, CURLOPT_HEADERFUNCTION, CB_CurlHeaderParse);
 		curl_easy_setopt(core, CURLOPT_WRITEDATA, this);
@@ -175,7 +182,8 @@ int CurlSessionCY::GetSessionToken(const std::wstring & url, const std::wstring 
 		curl_easy_setopt(core, CURLOPT_USERPWD, ccuserpwd);
 
 		this->header.clear();
-		this->response = std::wstring();
+		this->sz_response = 0;
+		this->v_response.clear();
 
 		CURLcode res = curl_easy_perform(core);
 		rtn = CurlParseReturnCode(res);
@@ -186,9 +194,9 @@ int CurlSessionCY::GetSessionToken(const std::wstring & url, const std::wstring 
 			}
 		}
 
-		free(ccurl);
-		free(ccuser);
-		free(ccpasswd);
+		//free(ccurl);
+		//free(ccuser);
+		//free(ccpasswd);
 	}
 
 	return rtn;
@@ -200,13 +208,15 @@ int CurlSessionCY::SendCurlRequest(TransmissionProfile* prof, const std::wstring
 	std::wstringstream xss;
 	BOOL udc;
 	int rbt;
-	char* errbuf = (char*)malloc(CURL_ERROR_SIZE);
+	//char* errbuf = (char*)malloc(CURL_ERROR_SIZE);
+	char* errbuf = (char*)BufferedJsonAllocator::GetInstance()->Malloc(CURL_ERROR_SIZE);
 
 	tts.clear();
 	size_t xallz;
 
 	xallz = prof->url.length() * sizeof(wchar_t) + 1;
-	char* ccurl = (char*)malloc(xallz);
+	//char* ccurl = (char*)malloc(xallz);
+	char* ccurl = (char*)BufferedJsonAllocator::GetInstance()->Malloc(xallz);
 	rbt = ::WideCharToMultiByte(CP_ACP, 0, prof->url.c_str(), prof->url.length(), ccurl, xallz, NULL, &udc);
 	ccurl[rbt] = 0;
 	curl_easy_setopt(core, CURLOPT_URL, ccurl);
@@ -215,14 +225,16 @@ int CurlSessionCY::SendCurlRequest(TransmissionProfile* prof, const std::wstring
 	std::wstring xstr = xss.str();
 	size_t xssz = xstr.size();
 	xallz = xssz * sizeof(wchar_t) + 1;
-	char* ccsss = (char*)malloc(xallz);
+	//char* ccsss = (char*)malloc(xallz);
+	char* ccsss = (char*)BufferedJsonAllocator::GetInstance()->Malloc(xallz);
 	rbt = ::WideCharToMultiByte(CP_ACP, 0, xss.str().c_str(), xss.str().length(), ccsss, xallz, NULL, &udc);
 	ccsss[rbt] = 0;
 	struct curl_slist* custom_headers = curl_slist_append(NULL, ccsss);
 	curl_easy_setopt(core, CURLOPT_HTTPHEADER, custom_headers);
 
 	xallz = request.length() * sizeof(wchar_t) + 1;
-	char* ccquery = (char*)malloc(xallz);
+	//char* ccquery = (char*)malloc(xallz);
+	char* ccquery = (char*)BufferedJsonAllocator::GetInstance()->Malloc(xallz);
 	rbt = ::WideCharToMultiByte(CP_ACP, 0, request.c_str(), request.length(), ccquery, xallz, NULL, &udc);
 	ccquery[rbt] = 0;
 
@@ -230,13 +242,14 @@ int CurlSessionCY::SendCurlRequest(TransmissionProfile* prof, const std::wstring
 	curl_easy_setopt(core, CURLOPT_POST, 1);
 	curl_easy_setopt(core, CURLOPT_WRITEDATA, this);
 	curl_easy_setopt(core, CURLOPT_WRITEFUNCTION, CB_CurlResponseParse);
-	curl_easy_setopt(core, CURLOPT_TIMEOUT, 15);
+	curl_easy_setopt(core, CURLOPT_TIMEOUT, 90);
 	curl_easy_setopt(core, CURLOPT_POSTFIELDS, ccquery);
 	curl_easy_setopt(core, CURLOPT_POSTFIELDSIZE, strlen(ccquery));
 
 	curl_easy_setopt(core, CURLOPT_ERRORBUFFER, errbuf);
 
-	self->response = std::wstring();
+	self->v_response.clear();
+	self->sz_response = 0;
 	CURLcode res = curl_easy_perform(core);
 	rtn = CurlParseReturnCode(res);
 	switch (rtn)
@@ -247,14 +260,257 @@ int CurlSessionCY::SendCurlRequest(TransmissionProfile* prof, const std::wstring
 		}
 		break;
 	case 0:
-		tts = response;
+		if (self->sz_response > 0) {
+			unsigned long rbsz = self->sz_response + 1;
+			char* resbuf = (char*)BufferedJsonAllocator::GetInstance()->Malloc(rbsz);
+			resbuf[0] = 0;
+			for (std::vector<char*>::iterator itrb = v_response.begin();
+				itrb != v_response.end();
+				itrb++) {
+				strcat_s(resbuf, rbsz, *itrb);
+			}
+			int ressz = strlen(resbuf);
+			int xccsz = (ressz + 1) * sizeof(wchar_t);
+			wchar_t* wcbuf = (wchar_t*)BufferedJsonAllocator::GetInstance()->Malloc(xccsz);
+			rbt = ::MultiByteToWideChar(CP_ACP, 0, resbuf, ressz, wcbuf, xccsz);
+			wcbuf[rbt] = 0;
+			tts = wcbuf;
+		}
 		break;
 	}
 
-	free(ccurl);
-	free(ccquery);
-	free(ccsss);
-	free(errbuf);
+	//free(ccurl);
+	//free(ccquery);
+	//free(ccsss);
+	//free(errbuf);
+
+	return rtn;
+}
+
+wchar_t cwbuf[2048];
+wchar_t wwbuf[4500];
+
+int CurlSessionCY::SendCurlRequestFile(TransmissionProfile* prof, const std::wstring &request, std::wstring & fname)
+{
+	int rtn = 0;
+	BOOL udc;
+	int rbt;
+
+	char* errbuf = (char*)BufferedJsonAllocator::GetInstance()->Malloc(CURL_ERROR_SIZE);
+
+	fname.clear();
+	size_t xallz;
+
+	xallz = prof->url.length() * sizeof(wchar_t) + 1;
+	//char* ccurl = (char*)malloc(xallz);
+	char* ccurl = (char*)BufferedJsonAllocator::GetInstance()->Malloc(xallz);
+	rbt = ::WideCharToMultiByte(CP_ACP, 0, prof->url.c_str(), prof->url.length(), ccurl, xallz, NULL, &udc);
+	ccurl[rbt] = 0;
+	curl_easy_setopt(core, CURLOPT_URL, ccurl);
+
+	wsprintf(cwbuf, L"%s:%s", XSESSIONHTTPHEAD, prof->token.c_str());
+	size_t xssz = wcslen(cwbuf);
+	xallz = xssz * sizeof(wchar_t) + 1;
+	//char* ccsss = (char*)malloc(xallz);
+	char* ccsss = (char*)BufferedJsonAllocator::GetInstance()->Malloc(xallz);
+	rbt = ::WideCharToMultiByte(CP_ACP, 0, cwbuf, xssz, ccsss, xallz, NULL, &udc);
+	ccsss[rbt] = 0;
+	struct curl_slist* custom_headers = curl_slist_append(NULL, ccsss);
+	curl_easy_setopt(core, CURLOPT_HTTPHEADER, custom_headers);
+
+	//xallz = request.length() * sizeof(wchar_t) + 1;
+	//char* ccquery = (char*)malloc(xallz);
+	xallz = ::WideCharToMultiByte(CP_ACP, 0, request.c_str(), request.length(), NULL, 0, NULL, &udc);
+	if (xallz > 0) {
+		char* ccquery = (char*)BufferedJsonAllocator::GetInstance()->Malloc(xallz + 1);
+		rbt = ::WideCharToMultiByte(CP_ACP, 0, request.c_str(), request.length(), ccquery, xallz, NULL, &udc);
+		ccquery[rbt] = 0;
+
+		UINT urt = GetTempFileName(L".", L"_se", 0, cwbuf);
+		self->fn_response = cwbuf;
+
+		SetSessionCommonParms(core);
+		curl_easy_setopt(core, CURLOPT_POST, 1);
+		curl_easy_setopt(core, CURLOPT_WRITEDATA, this);
+		curl_easy_setopt(core, CURLOPT_WRITEFUNCTION, CB_CurlResponseParseFile);
+		curl_easy_setopt(core, CURLOPT_TIMEOUT, 90);
+		curl_easy_setopt(core, CURLOPT_POSTFIELDS, ccquery);
+		curl_easy_setopt(core, CURLOPT_POSTFIELDSIZE, strlen(ccquery));
+		curl_easy_setopt(core, CURLOPT_ERRORBUFFER, errbuf);
+
+		CURLcode res = curl_easy_perform(core);
+		rtn = CurlParseReturnCode(res);
+		switch (rtn)
+		{
+		case 2:
+			if (this->header.find(XSESSIONHTTPHEAD) != this->header.end()) {
+				prof->token = this->header[XSESSIONHTTPHEAD];
+			}
+			break;
+		case 0:
+			if (self->fn_response.length() > 0) {
+				UINT urt = GetTempFileName(L".", L"_sp", 0, cwbuf);
+				fname = cwbuf;
+
+				HANDLE hdw = CreateFile(cwbuf, GENERIC_WRITE, 0, NULL, CREATE_NEW | OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+				if (hdw != INVALID_HANDLE_VALUE) {
+					HANDLE hrr = CreateFile(self->fn_response.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+					if (hrr != INVALID_HANDLE_VALUE) {
+						unsigned char* dat = (unsigned char*)cwbuf;
+						DWORD dwrr;
+
+						BOOL brr = ReadFile(hrr, dat, 4096, &dwrr, NULL);
+						DWORD drshift;
+						bool keepseek;
+						while (dwrr > 0) {
+							int epos = ::MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS, (char*)dat, dwrr, NULL, 0);
+							keepseek = epos == 0;
+							drshift = 0;
+							while (keepseek) {
+								drshift++;
+								epos = ::MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS, (char*)dat, dwrr - drshift, NULL, 0);
+								keepseek = epos == 0;
+								keepseek = drshift < 10 ? keepseek : false;
+							}
+							if (epos > 0) {
+								dwrr -= drshift;
+								epos = ::MultiByteToWideChar(CP_ACP, 0, (char*)dat, dwrr, wwbuf, 4500);
+								if (epos > 0) {
+									brr = WriteFile(hdw, wwbuf, epos * sizeof(wchar_t), &dwrr, NULL);
+								}
+							}
+							if (drshift > 0) {
+								::SetFilePointer(hrr, -(int)drshift, NULL, FILE_CURRENT);
+							}
+							brr = ReadFile(hrr, dat, 4096, &dwrr, NULL);
+						}
+						CloseHandle(hrr);
+						DeleteFile(self->fn_response.c_str());
+					}
+					else {
+						rtn = 23;
+					}
+					CloseHandle(hdw);
+				}
+				else {
+					rtn = 22;
+				}
+			}
+			else {
+				rtn = 21;
+			}
+			break;
+		}
+	}
+	else {
+		rtn = 12;
+	}
+
+	//free(ccurl);
+	//free(ccquery);
+	//free(ccsss);
+	//free(errbuf);
+
+	return rtn;
+}
+
+int CurlSessionCY::SendCurlRequestFileHandle(TransmissionProfile* prof, const std::wstring &request, HANDLE hresp)
+{
+	int rtn = 0;
+	BOOL udc;
+	int rbt;
+
+	char* errbuf = (char*)BufferedJsonAllocator::GetInstance()->Malloc(CURL_ERROR_SIZE);
+
+	size_t xallz;
+
+	xallz = prof->url.length() * sizeof(wchar_t) + 1;
+	//char* ccurl = (char*)malloc(xallz);
+	char* ccurl = (char*)BufferedJsonAllocator::GetInstance()->Malloc(xallz);
+	rbt = ::WideCharToMultiByte(CP_ACP, 0, prof->url.c_str(), prof->url.length(), ccurl, xallz, NULL, &udc);
+	ccurl[rbt] = 0;
+	curl_easy_setopt(core, CURLOPT_URL, ccurl);
+
+	wsprintf(cwbuf, L"%s:%s", XSESSIONHTTPHEAD, prof->token.c_str());
+	size_t xssz = wcslen(cwbuf);
+	xallz = xssz * sizeof(wchar_t) + 1;
+	//char* ccsss = (char*)malloc(xallz);
+	char* ccsss = (char*)BufferedJsonAllocator::GetInstance()->Malloc(xallz);
+	rbt = ::WideCharToMultiByte(CP_ACP, 0, cwbuf, xssz, ccsss, xallz, NULL, &udc);
+	ccsss[rbt] = 0;
+	struct curl_slist* custom_headers = curl_slist_append(NULL, ccsss);
+	curl_easy_setopt(core, CURLOPT_HTTPHEADER, custom_headers);
+
+	//xallz = request.length() * sizeof(wchar_t) + 1;
+	//char* ccquery = (char*)malloc(xallz);
+	xallz = ::WideCharToMultiByte(CP_ACP, 0, request.c_str(), request.length(), NULL, 0, NULL, &udc);
+	if (xallz > 0) {
+		char* ccquery = (char*)BufferedJsonAllocator::GetInstance()->Malloc(xallz + 1);
+		rbt = ::WideCharToMultiByte(CP_ACP, 0, request.c_str(), request.length(), ccquery, xallz, NULL, &udc);
+		ccquery[rbt] = 0;
+
+		UINT urt = GetTempFileName(L".", L"_se", 0, cwbuf);
+		h_response = CreateFile(cwbuf, GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_NEW | OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_DELETE_ON_CLOSE, NULL);
+
+		SetSessionCommonParms(core);
+		curl_easy_setopt(core, CURLOPT_POST, 1);
+		curl_easy_setopt(core, CURLOPT_WRITEDATA, this);
+		curl_easy_setopt(core, CURLOPT_WRITEFUNCTION, CB_CurlResponseParseFileHandle);
+		curl_easy_setopt(core, CURLOPT_TIMEOUT, 90);
+		curl_easy_setopt(core, CURLOPT_POSTFIELDS, ccquery);
+		curl_easy_setopt(core, CURLOPT_POSTFIELDSIZE, strlen(ccquery));
+		curl_easy_setopt(core, CURLOPT_ERRORBUFFER, errbuf);
+
+		CURLcode res = curl_easy_perform(core);
+		rtn = CurlParseReturnCode(res);
+		switch (rtn)
+		{
+		case 2:
+			if (this->header.find(XSESSIONHTTPHEAD) != this->header.end()) {
+				prof->token = this->header[XSESSIONHTTPHEAD];
+			}
+			break;
+		case 0:
+			//UINT urt = GetTempFileName(L".", L"_sp", 0, cwbuf);
+			//fname = cwbuf;
+
+			//HANDLE hdw = CreateFile(cwbuf, GENERIC_WRITE, 0, NULL, CREATE_NEW | OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+			if (hresp != INVALID_HANDLE_VALUE) {
+				//HANDLE hrr = CreateFile(self->fn_response.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+				if (h_response != INVALID_HANDLE_VALUE) {
+					unsigned char* dat = (unsigned char*)cwbuf;
+					DWORD dwrr;
+
+					dwrr = SetFilePointer(h_response, 0, NULL, FILE_BEGIN);
+					BOOL brr = ReadFile(h_response, dat, 4096, &dwrr, NULL);
+					while (dwrr > 0) {
+						int epos = ::MultiByteToWideChar(CP_ACP, 0, (char*)dat, dwrr, wwbuf, 4500);
+						if (epos > 0) {
+							brr = WriteFile(hresp, wwbuf, epos * sizeof(wchar_t), &dwrr, NULL);
+						}
+						brr = ReadFile(h_response, dat, 4096, &dwrr, NULL);
+					}
+					CloseHandle(h_response);
+				}
+				else {
+					rtn = 23;
+				}
+				//CloseHandle(hdw);
+			}
+			else {
+				rtn = 22;
+			}
+			break;
+		}
+	}
+	else {
+		rtn = 12;
+	}
+
+	//free(ccurl);
+	//free(ccquery);
+	//free(ccsss);
+	//free(errbuf);
 
 	return rtn;
 }
@@ -306,24 +562,64 @@ size_t CurlSessionCY::CB_CurlHeaderParse(void* data, size_t size, size_t nmemb, 
 size_t CurlSessionCY::CB_CurlResponseParse(void* data, size_t size, size_t nmemb, void* userp)
 {
 	size_t rsz = size * nmemb;
-	//	size_t ors;
 	CurlSessionCY* self = (CurlSessionCY*)userp;
-	unsigned char* resbuf = (unsigned char*)malloc(rsz + 1);
+	char* resbuf = (char*)BufferedJsonAllocator::GetInstance()->Malloc(rsz + 1);
 
 	if (resbuf) {
 		memcpy_s(resbuf, rsz, data, rsz);
 		resbuf[rsz] = 0;
 
-		std::wstringstream sss;
-		sss << self->response.c_str();
-		sss << (char*)resbuf;
-		free(resbuf);
-
-		self->response.clear();
-		self->response = sss.str();
-		sss.clear();
+		self->v_response.insert(self->v_response.end(), resbuf);
+		self->sz_response += rsz;
 	}
 
 	return rsz;
 }
 
+size_t CurlSessionCY::CB_CurlResponseParseFile(void * data, size_t size, size_t nmemb, void * userp)
+{
+	size_t rsz = 0;
+	CurlSessionCY* self = (CurlSessionCY*)userp;
+
+	if (self->fn_response.length() > 0) {
+		rsz = size * nmemb;
+		HANDLE hwwt = CreateFile(self->fn_response.c_str(), GENERIC_WRITE, 0, NULL, CREATE_NEW | OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+
+		if (hwwt != INVALID_HANDLE_VALUE) {
+			DWORD dwPos = SetFilePointer(hwwt, 0, NULL, FILE_END);
+			BOOL blf;
+			//BOOL blf = LockFile(hwwt, dwPos, 0, rsz, 0);
+			//if (blf) {
+			DWORD dbw;
+			blf = WriteFile(hwwt, data, rsz, &dbw, NULL);
+			//blf = UnlockFile(hwwt, dwPos, 0, rsz, 0);
+		//}
+			CloseHandle(hwwt);
+		}
+	}
+	return rsz;
+}
+
+size_t CurlSessionCY::CB_CurlResponseParseFileHandle(void * data, size_t size, size_t nmemb, void * userp)
+{
+	size_t rsz = 0;
+	CurlSessionCY* self = (CurlSessionCY*)userp;
+
+	//if (self->fn_response.length() > 0) {
+		rsz = size * nmemb;
+	//	HANDLE hwwt = CreateFile(self->fn_response.c_str(), GENERIC_WRITE, 0, NULL, CREATE_NEW | OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+
+		if (self->h_response != INVALID_HANDLE_VALUE) {
+			DWORD dwPos = SetFilePointer(self->h_response, 0, NULL, FILE_END);
+			BOOL blf;
+			//BOOL blf = LockFile(hwwt, dwPos, 0, rsz, 0);
+			//if (blf) {
+			DWORD dbw;
+			blf = WriteFile(self->h_response, data, rsz, &dbw, NULL);
+			//blf = UnlockFile(hwwt, dwPos, 0, rsz, 0);
+		//}
+			//CloseHandle(hwwt);
+		}
+	//}
+	return rsz;
+}

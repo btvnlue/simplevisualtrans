@@ -167,6 +167,7 @@
     <ClInclude Include="TorrentNode.h" />
     <ClInclude Include="TransmissionManager.h" />
     <ClInclude Include="TransmissionProfile.h" />
+    <ClInclude Include="Utilities.h" />
     <ClInclude Include="ViewManager.h" />
     <ClInclude Include="WindowViewCY.h" />
   </ItemGroup>
@@ -179,6 +180,7 @@
     <ClCompile Include="TorrentNode.cpp" />
     <ClCompile Include="TransmissionManager.cpp" />
     <ClCompile Include="TransmissionProfile.cpp" />
+    <ClCompile Include="Utilities.cpp" />
     <ClCompile Include="ViewManager.cpp" />
     <ClCompile Include="WindowViewCY.cpp" />
   </ItemGroup>

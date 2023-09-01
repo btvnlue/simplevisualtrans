@@ -4,22 +4,87 @@
 #include <list>
 #include <set>
 #include <vector>
+#include <map>
 
 template <typename T> struct ItemArray {
 	T items = NULL;
 	unsigned long count = 0;
 };
 
+#define RTT_OBJECT 1
+#define RTT_ARRAY 2
+#define RTT_STRING 3
+#define RTT_DOUBLE 4
+#define RTT_INT64 5
+#define RTT_INT 6
+#define RTT_BOOL 7
+
+struct RawTorrentValuePair;
+typedef ItemArray<RawTorrentValuePair*> RawTorrentValues;
+
+struct RawTorrentValuePair
+{
+	RawTorrentValuePair() {};
+	wchar_t* key = nullptr;
+	int valuetype;
+	union {
+		wchar_t* vvstr;
+		RawTorrentValues vvobject;
+		double vvdouble;
+		__int64 vvint64;
+		int vvint;
+		bool vvbool;
+	};
+};
+
 struct TrackerCY {
 	int id = -1;
 	std::wstring name;
 	std::wstring url;
+	int rawid;
 };
 
+struct TorrentFileNode {
+	static wchar_t pathch;
+	int id;
+	long pathid = -1;
+	std::wstring name;
+	TorrentFileNode* parent;
+	std::map<long, TorrentFileNode*> nodes;
+	unsigned long long size = 0;
+	long count = 0;
+	long pathcount = 0;
+	wchar_t dispbuf[1024] = { 0 };
+	int wanted = 1;
+	int priority = 0;
+	unsigned long long completed = 0;
+	
+	wchar_t* disppath = dispbuf;
+	wchar_t* dispname = dispbuf + 384;
+	wchar_t* dispsize = dispbuf + 512;
+	wchar_t* dispid = dispbuf + 542;
+	wchar_t* dispbkmg = dispbuf + 555;
+	wchar_t* disphas = dispbuf + 590;
+	wchar_t* disppr = dispbuf + 600;
+
+	int Add(TorrentFileNode * fnd);
+	TorrentFileNode * GetPathNode(wchar_t * path);
+	int Path(wchar_t* pbuf);
+	int UpdateDisp();
+	int UpdateStat();
+	bool IsPath() {
+		return count >= 0;
+	}
+	TorrentFileNode* GetFile(long fid);
+	long GetPathId();
+};
+
+#define TTSTATE_NONE 0x0000
 //#define TTSTATE_NAME 0x0001
 #define TTSTATE_BASEINFO 0x0002
 #define TTSTATE_TRANINFO 0x0004
 #define TTSTATE_SPEED 0x0008
+//#define TTSTATE_EXIST 0x0010
 
 #define TTS_PAUSED 0
 #define TTS_PENDING 1
@@ -32,14 +97,16 @@ class TorrentNode
 {
 	int ClearState();
 	int SetState(unsigned long sst);
-	wchar_t charbuf[2048];
+	wchar_t charbuf[4096];
 	wchar_t *datbuf = charbuf;
 	wchar_t *dispbuf = charbuf + 1024;
+	unsigned char * _disppieces = (unsigned char *)(charbuf + 2048);
 public:
 	TorrentNode();
 	virtual ~TorrentNode();
 
 	unsigned long state;
+	bool exist;
 	unsigned long id;
 	std::wstring name;
 	unsigned long long size = 0;
@@ -47,8 +114,7 @@ public:
 	unsigned long long uploaded = 0;
 	unsigned long long leftsize = 0;
 	unsigned long long corrupt = 0;
-	ItemArray<struct TrackerCY*> rawtrackers;
-	ItemArray<struct TrackerCY**> _trackers;
+	std::set<TrackerCY*> __trackers;
 	long downspeed = 0;
 	long upspeed = 0;
 	unsigned long long updatetick = 0;
@@ -61,6 +127,7 @@ public:
 	wchar_t * _error = datbuf + 256;
 	bool errorflag = false;
 	double ratio = 0;
+	double recheck = 0;
 	bool privacy = false;
 	bool done = false;
 	bool stalled = false;
@@ -74,7 +141,8 @@ public:
 	unsigned long long desired = 0;
 	ItemArray<unsigned char*> piecesdata;
 	bool valid = true;
-	ItemArray<struct TorrentNodeFile*> files;
+	std::wstring magnet;
+	TorrentFileNode* files = nullptr;
 
 	wchar_t *dispid = dispbuf;
 	wchar_t *dispsize = dispbuf + 10;
@@ -91,19 +159,40 @@ public:
 	wchar_t *disppiececount = dispbuf + 275;
 	wchar_t *disppiecesize = dispbuf + 295;
 	wchar_t *dispavialable = dispbuf + 315;
+	wchar_t *disptracker = dispbuf + 335;
 
 	int Copy(TorrentNode* node);
+	int CopyRaw(RawTorrentValuePair* rawnode);
+	int copyRawTrackers(RawTorrentValuePair * rawnode);
+	int copyRawFile(long fid, RawTorrentValuePair * rawnode);
+	int copyRawFileStat(TorrentFileNode* file, RawTorrentValuePair * rawnode);
+	TrackerCY* GetRawTracker(RawTorrentValuePair * rawnode);
+
+
 	int DispRefresh();
 	int CleanTrackers();
 };
 
-#define VNT_GROUP 0
-#define VNT_TORRENT 1
-#define VNT_CLIPBOARD 2
-#define VNT_CLIPBOARD_ITEM 3
-#define VNT_PROFILE 4
-#define VNT_TRACKERS 5
-#define VNT_TRACKER 6
+enum _ViewNodeType {
+	VNT_GROUP = 0,
+	VNT_TORRENT = 1,
+	VNT_CLIPBOARD = 2,
+	VNT_CLIPBOARD_ITEM = 3,
+	VNT_PROFILE = 4,
+	VNT_TRACKERS = 5,
+	VNT_TRACKER = 6,
+	VNT_FILEPATH = 7,
+	VNT_FILE = 8,
+};
+
+typedef enum _ViewNodeType ViewNodeType;
+
+int FormatNumberView(wchar_t* buf, size_t bufsz, unsigned __int64 size);
+int FormatNumberBKMG(wchar_t* buf, size_t bufsz, unsigned __int64 size);
+int FormatViewStatus(wchar_t* wbuf, size_t bsz, long status);
+int FormatViewStatus(wchar_t* wbuf, size_t bsz, long status);
+int FormatDoublePercentage(wchar_t* wbuf, size_t bsz, double pval);
+int FormatIntegerDate(wchar_t* wbuf, size_t bsz, long mtt);
 
 class ViewNode
 {
@@ -115,22 +204,27 @@ class ViewNode
 public:
 	virtual ~ViewNode();
 
-	static ViewNode* NewViewNode(int vnt);
+	static ViewNode* NewViewNode(ViewNodeType vnt);
 	ViewNode* parent;
 	std::list<ViewNode*> nodes;
+	TorrentFileNode* file;
 	std::wstring name;
 	long id;
-	int type;
+	ViewNodeType type;
 	bool valid;
 
 	int AddNode(ViewNode* node);
 	bool HasTorrent(TorrentNode* trt);
 	bool HasViewNode(ViewNode* vnd);
 	int GetAllTorrentsViewNode(std::set<ViewNode*>& tts);
-	int GetType();
+	//int GetAllFileViewNode(std::set<ViewNode*>& fns);
+	int GetAllTypeNode(ViewNodeType vnt, std::set<ViewNode*>& vns);
+	ViewNodeType GetType();
 	int SetTorrent(TorrentNode* trt);
 	int SetTracker(TrackerCY* tkr);
 	TorrentNode* GetTorrent();
 	ViewNode* GetTrackerGroup();
 	ViewNode* GetTracker(int id);
+	ViewNode* GetFilesNode();
+	ViewNode* GetRoot();
 };

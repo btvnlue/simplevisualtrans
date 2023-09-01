@@ -10,6 +10,7 @@
 #include <UIRibbon.h>
 #include <CommCtrl.h>
 #include <Windows.h>
+#include <windowsx.h>
 
 #pragma comment(lib, "Comctl32.lib")
 
@@ -19,6 +20,7 @@
 #define WM_U_INITIALIZESERVICE WM_USER + 0x113
 #define WM_U_PROFILELOADED WM_USER + 0x114
 #define WM_U_REFRESHPROFILETORRENTS WM_USER + 0x115
+#define WM_U_INPUTCOMMAND WM_USER + 0x121
 #define WM_U_ADDLINKBYDROP WM_USER + 0x123
 
 ATOM windowViewCYClass = 0;
@@ -646,55 +648,96 @@ LRESULT WindowViewCY::ListProcessNotify(LPARAM lParam)
 			switch (vnt)
 			{
 			case VNT_GROUP:
-			{
-				ViewNode* tnd = view->currentnodelist.at(plvdi->item.iItem);
-				TorrentNode *ctt = tnd->GetTorrent();
+				if (plvdi->item.iItem < (int)view->currentnodelist.size()) {
+					ViewNode* tnd = view->currentnodelist.at(plvdi->item.iItem);
+					TorrentNode *ctt = tnd->GetTorrent();
 
-				switch (plvdi->item.iSubItem) {
-				case LISTSORT_NAME:
-					plvdi->item.pszText = (LPWSTR)ctt->name.c_str();
-					break;
-				case LISTSORT_ID:
-					plvdi->item.pszText = ctt->dispid;
-					break;
-				case LISTSORT_SIZE:
-					plvdi->item.pszText = ctt->dispsize;
-					break;
-				case LISTSORT_DOWNSPEED:
-					plvdi->item.pszText = ctt->dispdownspeed;
-					break;
-				case LISTSORT_UPSPEED:
-					plvdi->item.pszText = ctt->dispupspeed;
-					break;
-				case LISTSORT_STATUS:
-					plvdi->item.pszText = ctt->dispstatus;
-					break;
-				case LISTSORT_LOCATION:
-					plvdi->item.pszText = (LPWSTR)ctt->_path;
-					break;
-				case LISTSORT_RATIO:
-					plvdi->item.pszText = ctt->dispratio;
-					break;
+					switch (plvdi->item.iSubItem) {
+					case LISTSORT_NAME:
+						plvdi->item.pszText = (LPWSTR)ctt->name.c_str();
+						break;
+					case LISTSORT_ID:
+						plvdi->item.pszText = ctt->dispid;
+						break;
+					case LISTSORT_SIZE:
+						plvdi->item.pszText = ctt->dispsize;
+						break;
+					case LISTSORT_DOWNSPEED:
+						plvdi->item.pszText = ctt->dispdownspeed;
+						break;
+					case LISTSORT_UPSPEED:
+						plvdi->item.pszText = ctt->dispupspeed;
+						break;
+					case LISTSORT_STATUS:
+						plvdi->item.pszText = ctt->dispstatus;
+						break;
+					case LISTSORT_LOCATION:
+						plvdi->item.pszText = (LPWSTR)ctt->_path;
+						break;
+					case LISTSORT_RATIO:
+						plvdi->item.pszText = ctt->dispratio;
+						break;
+					case LISTSORT_TRACKER:
+						plvdi->item.pszText = ctt->disptracker;
+						break;
+					case LISTSORT_ERROR:
+						plvdi->item.pszText = ctt->_error;
+						break;
+					}
 				}
-			}
-			break;
+				break;
+			case VNT_FILEPATH:
+				if (plvdi->item.iItem < (int)view->currentnodelist.size()) {
+					ViewNode* tnd = view->currentnodelist.at(plvdi->item.iItem);
+					TorrentFileNode* tfn = tnd->file;
+					if (tfn) {
+						switch (plvdi->item.iSubItem) {
+						case LISTFILESORT_ID:
+							plvdi->item.pszText = (LPWSTR)tfn->dispid;
+							break;
+						case LISTFILESORT_HAS:
+							plvdi->item.pszText = (LPWSTR)tfn->disphas;
+							break;
+						case LISTFILESORT_PR:
+							plvdi->item.pszText = (LPWSTR)tfn->disppr;
+							break;
+						case LISTFILESORT_NAME:
+							plvdi->item.pszText = (LPWSTR)tfn->dispname;
+							break;
+						case LISTFILESORT_PATH:
+							plvdi->item.pszText = (LPWSTR)tfn->disppath;
+							break;
+						case LISTFILESORT_SIZE:
+							plvdi->item.pszText = (LPWSTR)tfn->dispsize;
+							break;
+						}
+					}
+				}
+				break;
 			case VNT_TORRENT:
+			case VNT_PROFILE:
 			{
 				switch (plvdi->item.iSubItem) {
 				case 0:
 				{
-					std::map<int, std::wstring>::iterator ittp = view->tnpnames.find(plvdi->item.iItem);
-					if (ittp != view->tnpnames.end()) {
-						plvdi->item.pszText = (LPWSTR)ittp->second.c_str();
+					//std::map<int, std::wstring>::iterator ittp = view->tnpnames.find(plvdi->item.iItem);
+					//if (ittp != view->tnpnames.end()) {
+					//	plvdi->item.pszText = (LPWSTR)ittp->second.c_str();
 
+					//}
+					if (plvdi->item.iItem < (int)view->tnpdisp.size()) {
+						plvdi->item.pszText = (LPWSTR)view->tnpdisp.at(plvdi->item.iItem).first.c_str();
 					}
 				}
 				break;
 				case 1:
 				{
-					std::map<int, std::wstring>::iterator ittp = view->tnpvalues.find(plvdi->item.iItem);
-					if (ittp != view->tnpvalues.end()) {
-						plvdi->item.pszText = (LPWSTR)ittp->second.c_str();
+					//std::map<int, std::wstring>::iterator ittp = view->tnpvalues.find(plvdi->item.iItem);
+					//if (ittp != view->tnpvalues.end()) {
+					//	plvdi->item.pszText = (LPWSTR)ittp->second.c_str();
+					//}
+					if (plvdi->item.iItem < (int)view->tnpdisp.size()) {
+						plvdi->item.pszText = (LPWSTR)view->tnpdisp.at(plvdi->item.iItem).second.c_str();
 					}
 				}
 				break;
@@ -718,12 +761,23 @@ LRESULT WindowViewCY::ListProcessNotify(LPARAM lParam)
 	case LVN_COLUMNCLICK:
 		if (view->currentnode) {
 			LPNMLISTVIEW pnmv = (LPNMLISTVIEW)lParam;
-			if (view->currentnode->GetType() == VNT_GROUP) {
+			ViewNodeType vnt = view->currentnode->GetType();
+			switch (vnt) {
+			case VNT_GROUP:
 				if (view->listsortindex == pnmv->iSubItem) {
 					view->listsortdesc = !view->listsortdesc;
 				}
 				view->listsortindex = pnmv->iSubItem;
 				view->ListSortTorrentGroup(view->listsortindex);
+				break;
+			case VNT_FILEPATH:
+				if (view->listsortindex == pnmv->iSubItem) {
+					view->listsortdesc = !view->listsortdesc;
+				}
+				view->listsortindex = pnmv->iSubItem;
+				view->ListSortFiles(view->currentnodelist, view->listsortindex, view->listsortdesc);
+				PostMessage(hList, LVM_REDRAWITEMS, 0, view->currentnodelist.size() - 1);
+				break;
 			}
 		}
 		break;
@@ -804,7 +858,12 @@ LRESULT WindowViewCY::TreeProcessNotify(LPARAM lParam)
 			lptvdi->item.pszText = (LPWSTR)vnd->name.c_str();
 		}
 		if (lptvdi->item.mask & TVIF_CHILDREN) {
-			lptvdi->item.cChildren = vnd->nodes.size();
+			if (vnd->GetType() == VNT_FILEPATH) {
+				lptvdi->item.cChildren = vnd->file->pathcount;
+			}
+			else {
+				lptvdi->item.cChildren = vnd->nodes.size();
+			}
 		}
 	}
 	break;
@@ -827,7 +886,7 @@ LRESULT WindowViewCY::TreeProcessNotify(LPARAM lParam)
 	return rtn;
 }
 
-int WindowViewCY::LogDrawItems(LPDRAWITEMSTRUCT dis)
+int WindowViewCY::DrawListItemLog(LPDRAWITEMSTRUCT dis)
 {
 	DrawText(dis->hDC, view->log.items[dis->itemID].data, wcslen(view->log.items[dis->itemID].data), &dis->rcItem, DT_LEFT);
 	return 0;
@@ -869,6 +928,24 @@ LRESULT WindowViewCY::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 		case IDM_EXIT:
 			U_Close();
 			DestroyWindow(hWnd);
+			break;
+		case ID_CONTEXT_PAUSE:
+			view->ViewPauseTorrent(TRUE);
+			break;
+		case ID_CONTEXT_RESUME:
+			view->ViewPauseTorrent(FALSE);
+			break;
+		case ID_CONTEXT_VERIFY:
+			view->ViewVerifyTorrent();
+			break;
+		case ID_CONTEXT_DELETE:
+			view->ViewDeleteContent(FALSE);
+			break;
+		case ID_CONTEXT_DELETEDATA:
+			view->ViewDeleteContent(TRUE);
+			break;
+		case ID_CONTEXT_SETLOCATION:
+			view->ViewSetLocation();
 			break;
 		default:
 			return DefWindowProc(hWnd, message, wParam, lParam);
@@ -917,6 +994,9 @@ LRESULT WindowViewCY::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 	case WM_SIZE:
 		U_ResizeContentWindow();
 		break;
+	case WM_CONTEXTMENU:
+		view->ShowContextMenu(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+		break;
 	case WM_NOTIFY:
 		if (lParam) {
 			NMHDR * nmh = (NMHDR*)lParam;
@@ -931,11 +1011,14 @@ LRESULT WindowViewCY::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 	case WM_CLIPBOARDUPDATE:
 		view->ProcessClipboardEntry();
 		break;
+	case WM_U_INPUTCOMMAND:
+		view->ProcessInputCommand();
+		break;
 	case WM_DRAWITEM:
 	{
 		LPDRAWITEMSTRUCT dis = (LPDRAWITEMSTRUCT)lParam;
 		if (dis->hwndItem == hLog) {
-			LogDrawItems(dis);
+			DrawListItemLog(dis);
 		}
 	}
 	break;
@@ -993,7 +1076,22 @@ int WindowViewCY::U_ProcRibbonCommand(int cmd)
 		view->ViewCommitTorrents(0);
 		break;
 	case cmdDeleteContentTorrent:
+		view->ViewDeleteContent(TRUE);
+		break;
+	case cmdDeleteTorrent:
 		view->ViewDeleteContent(FALSE);
+		break;
+	case cmdPauseTorrent:
+		view->ViewPauseTorrent(TRUE);
+		break;
+	case cmdResumeTorrent:
+		view->ViewPauseTorrent(FALSE);
+		break;
+	case cmdVerifyTorrent:
+		view->ViewVerifyTorrent();
+		break;
+	case cmdSetLocation:
+		view->ViewSetLocation();
 		break;
 	default:
 	{
@@ -1003,6 +1101,26 @@ int WindowViewCY::U_ProcRibbonCommand(int cmd)
 	}
 	}
 	return 0;
+}
+
+WNDPROC edProfileOriProc = NULL;
+HWND edHwnd = NULL;
+
+LRESULT APIENTRY EditBoxKeypressSubProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+	LRESULT lst = 0;
+
+	if (uMsg == WM_KEYUP) {
+		if (wParam == VK_RETURN) {
+			if (edHwnd) {
+				PostMessage(edHwnd, WM_U_INPUTCOMMAND, 0, 0);
+			}
+		}
+	}
+	else {
+		lst = CallWindowProc(edProfileOriProc, hwnd, uMsg, wParam, lParam);
+	}
+	return lst;
 }
 
 int WindowViewCY::U_InitWnd_ContentWindows(HWND hParent)
@@ -1025,14 +1143,26 @@ int WindowViewCY::U_InitWnd_ContentWindows(HWND hParent)
 	// Setup log window
 	//panel = CPanelWindow::CreatePanelWindow(*splitView);
 	//hLog = CreateWindow(WC_LISTBOX, L"", WS_CHILD | WS_VSCROLL | WS_HSCROLL | WS_VISIBLE | LBS_NOINTEGRALHEIGHT, 0, 0, 200, 10, *panel, NULL, hinst, NULL);
-	hLog = CreateWindow(WC_LISTBOX, L"",
-		WS_CHILD | WS_VSCROLL | WS_HSCROLL | WS_VISIBLE | LBS_NOINTEGRALHEIGHT | LBS_NODATA | LBS_OWNERDRAWFIXED,
-		0, 0, 200, 10, *splitView, NULL, hinst, NULL);
+	splitInput = CSplitWnd::CreateSplitWindow(*splitView);
+
 	splitContent = CSplitWnd::CreateSplitWindow(*splitView);
 	splitView->style = CSplitWnd::SPW_STYLE::TOPDOWN;
 	splitView->SetRatio(0.7);
 	splitView->SetWindow(*splitContent);
-	splitView->SetWindow(hLog);
+	splitView->SetWindow(*splitInput);
+
+	// Setup input text and log
+	hLog = CreateWindow(WC_LISTBOX, L"",
+		WS_CHILD | WS_VSCROLL | WS_HSCROLL | WS_VISIBLE | LBS_NOINTEGRALHEIGHT | LBS_NODATA | LBS_OWNERDRAWFIXED,
+		0, 0, 200, 10, *splitInput, NULL, hinst, NULL
+	);
+	hInput = CreateWindow(WC_EDIT, L"",
+		WS_CHILD | WS_VISIBLE | WS_EX_STATICEDGE | WS_BORDER | WS_TABSTOP | ES_WANTRETURN,
+		0, 0, 200, 20, *splitInput, NULL, hinst, NULL
+	);
+	splitInput->style = CSplitWnd::SPW_STYLE::DOCKDOWN;
+	splitInput->SetWindow(hLog);
+	splitInput->SetWindow(hInput);
 
 	// Setup Tree-VIew and List-View
 	hTree = hTree = CreateWindow(WC_TREEVIEW, L"", WS_CHILD | WS_VSCROLL | TVS_HASBUTTONS | TVS_LINESATROOT | TVS_SHOWSELALWAYS | TVS_FULLROWSELECT, 0, 0, 100, 100, *splitContent, NULL, hinst, NULL);
@@ -1051,10 +1181,15 @@ int WindowViewCY::U_InitWnd_ContentWindows(HWND hParent)
 		SetWindowLongPtr(hhd, GWL_STYLE, lps);
 	}
 
+	edProfileOriProc = (WNDPROC)GetWindowLongPtr(hInput, GWLP_WNDPROC);
+	edProfileOriProc = (WNDPROC)SetWindowLongPtr(hInput, GWLP_WNDPROC, (LONG_PTR)&EditBoxKeypressSubProc);
+	edHwnd = hParent;
+
 	HFONT hsysfont = (HFONT)::GetStockObject(DEFAULT_GUI_FONT);
 	::SendMessage(hLog, WM_SETFONT, (WPARAM)hsysfont, MAKELPARAM(TRUE, 0));
 	::SendMessage(hList, WM_SETFONT, (WPARAM)hsysfont, MAKELPARAM(TRUE, 0));
 	::SendMessage(hTree, WM_SETFONT, (WPARAM)hsysfont, MAKELPARAM(TRUE, 0));
+	::SendMessage(hInput, WM_SETFONT, (WPARAM)hsysfont, MAKELPARAM(TRUE, 0));
 
 	return 0;
 }
@@ -1081,16 +1216,16 @@ int WindowViewCY::U_ResizeContentWindow()
 	return 0;
 }
 
-class CBLoadProf : public ManagerCommand
-{
-public:
-	HWND wself;
-	CmdLoadProfile* cmd;
-	int Process(TransmissionManager* mgr) {
-		PostMessage(wself, WM_U_PROFILELOADED, (WPARAM)cmd->profile, NULL);
-		return 0;
-	}
-};
+//class CBLoadProf : public ManagerCommand
+//{
+//public:
+//	HWND wself;
+//	CmdLoadProfile* cmd;
+//	int Process(TransmissionManager* mgr) {
+//		PostMessage(wself, WM_U_PROFILELOADED, (WPARAM)cmd->profile, NULL);
+//		return 0;
+//	}
+//};
 
 int WindowViewCY::U_InitService()
 {
@@ -1099,6 +1234,7 @@ int WindowViewCY::U_InitService()
 	view->hLog = hLog;
 	view->hList = hList;
 	view->hWnd = hWnd;
+	view->hInput = hInput;
 	view->Start();
 
 	VCInit* vci = new VCInit();
