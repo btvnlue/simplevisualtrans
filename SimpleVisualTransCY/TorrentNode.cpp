@@ -209,85 +209,85 @@ int convertPiecesData(std::wstring& pcs, unsigned char* buf, long bufsz, long pi
 	return 0;
 }
 
+//#define STATED_COPY(_ori, _var, _sst) if (!(this->_var == _ori->_var)) {this->_var = _ori->_var;SetState(_sst);}
+//#define STATED_STR_COPY(_ori, _var, _ssz, _sst) if (wcscmp(_ori->_var, _var)!=0) {wcscpy_s(_var, _ssz, _ori->_var); SetState(_sst);}
+
+//int TorrentNode::Copy(TorrentNode * node)
+//{
+//	this->id = node->id;
+//	ClearState();
+//
+//	STATED_COPY(node, name, TTSTATE_BASEINFO);
+//	STATED_COPY(node, size, TTSTATE_BASEINFO);
+//	STATED_COPY(node, privacy, TTSTATE_BASEINFO);
+//	STATED_COPY(node, adddate, TTSTATE_BASEINFO);
+//	STATED_COPY(node, startdate, TTSTATE_BASEINFO);
+//	STATED_COPY(node, piececount, TTSTATE_BASEINFO);
+//	STATED_COPY(node, piecesize, TTSTATE_BASEINFO);
+//	STATED_STR_COPY(node, _path, 256, TTSTATE_BASEINFO);
+//	STATED_COPY(node, magnet, TTSTATE_BASEINFO);
+//
+//	STATED_COPY(node, downloaded, TTSTATE_TRANINFO);
+//	STATED_COPY(node, uploaded, TTSTATE_TRANINFO);
+//	STATED_COPY(node, leftsize, TTSTATE_TRANINFO);
+//	STATED_COPY(node, desired, TTSTATE_TRANINFO);
+//	STATED_COPY(node, corrupt, TTSTATE_TRANINFO);
+//	STATED_COPY(node, ratio, TTSTATE_TRANINFO);
+//	STATED_COPY(node, done, TTSTATE_TRANINFO);
+//	STATED_COPY(node, pieces, TTSTATE_TRANINFO);
+//	STATED_COPY(node, stalled, TTSTATE_TRANINFO);
+//	STATED_COPY(node, valid, TTSTATE_TRANINFO);
+//	STATED_COPY(node, status, TTSTATE_TRANINFO);
+//	STATED_COPY(node, recheck, TTSTATE_TRANINFO);
+//	STATED_STR_COPY(node, _error, 1024, TTSTATE_TRANINFO);
+//
+//	STATED_COPY(node, downspeed, TTSTATE_SPEED);
+//	STATED_COPY(node, upspeed, TTSTATE_SPEED);
+//
+//	//bool keepseek;
+//	//int ii = 0;
+//	//bool trackermatch = true;
+//	//bool trackerfound;
+//
+//	//if (_trackers.count != node->_trackers.count) {
+//	//	trackermatch = false;
+//	//	keepseek = false;
+//	//}
+//	//keepseek = ii < (int)node->_trackers.count ? keepseek : false;
+//
+//	//while (keepseek) { // find every tracker in update
+//	//	trackerfound = false;
+//	//	for (int kk = 0; kk < (int)_trackers.count; kk++) {
+//	//		if (node->_trackers.items[ii] == _trackers.items[kk]) {
+//	//			trackerfound = true;
+//	//		}
+//	//	}
+//
+//	//	if (trackerfound == false) {
+//	//		trackermatch = false;
+//	//		keepseek = false;
+//	//	}
+//
+//	//	ii++;
+//	//	keepseek = ii < (int)node->_trackers.count ? keepseek : false;
+//	//}
+//
+//	//if (trackermatch == false) {
+//	//	SetState(TTSTATE_BASEINFO);
+//	//	if (_trackers.count > 0) {
+//	//		delete[] _trackers.items;
+//	//	}
+//	//	_trackers.count = node->_trackers.count;
+//	//	_trackers.items = new TrackerCY*[_trackers.count];
+//	//	for (int ii = 0; ii < (int)node->_trackers.count; ii++) {
+//	//		_trackers.items[ii] = node->_trackers.items[ii];
+//	//	}
+//	//}
+//	return 0;
+//}
+
+
 WCHAR ttdispbuf[1024];
-#define STATED_COPY(_ori, _var, _sst) if (!(this->_var == _ori->_var)) {this->_var = _ori->_var;SetState(_sst);}
-#define STATED_STR_COPY(_ori, _var, _ssz, _sst) if (wcscmp(_ori->_var, _var)!=0) {wcscpy_s(_var, _ssz, _ori->_var); SetState(_sst);}
-
-int TorrentNode::Copy(TorrentNode * node)
-{
-	this->id = node->id;
-	ClearState();
-
-	STATED_COPY(node, name, TTSTATE_BASEINFO);
-	STATED_COPY(node, size, TTSTATE_BASEINFO);
-	STATED_COPY(node, privacy, TTSTATE_BASEINFO);
-	STATED_COPY(node, adddate, TTSTATE_BASEINFO);
-	STATED_COPY(node, startdate, TTSTATE_BASEINFO);
-	STATED_COPY(node, piececount, TTSTATE_BASEINFO);
-	STATED_COPY(node, piecesize, TTSTATE_BASEINFO);
-	STATED_STR_COPY(node, _path, 256, TTSTATE_BASEINFO);
-	STATED_COPY(node, magnet, TTSTATE_BASEINFO);
-
-	STATED_COPY(node, downloaded, TTSTATE_TRANINFO);
-	STATED_COPY(node, uploaded, TTSTATE_TRANINFO);
-	STATED_COPY(node, leftsize, TTSTATE_TRANINFO);
-	STATED_COPY(node, desired, TTSTATE_TRANINFO);
-	STATED_COPY(node, corrupt, TTSTATE_TRANINFO);
-	STATED_COPY(node, ratio, TTSTATE_TRANINFO);
-	STATED_COPY(node, done, TTSTATE_TRANINFO);
-	STATED_COPY(node, pieces, TTSTATE_TRANINFO);
-	STATED_COPY(node, stalled, TTSTATE_TRANINFO);
-	STATED_COPY(node, valid, TTSTATE_TRANINFO);
-	STATED_COPY(node, status, TTSTATE_TRANINFO);
-	STATED_COPY(node, recheck, TTSTATE_TRANINFO);
-	STATED_STR_COPY(node, _error, 1024, TTSTATE_TRANINFO);
-
-	STATED_COPY(node, downspeed, TTSTATE_SPEED);
-	STATED_COPY(node, upspeed, TTSTATE_SPEED);
-
-	//bool keepseek;
-	//int ii = 0;
-	//bool trackermatch = true;
-	//bool trackerfound;
-
-	//if (_trackers.count != node->_trackers.count) {
-	//	trackermatch = false;
-	//	keepseek = false;
-	//}
-	//keepseek = ii < (int)node->_trackers.count ? keepseek : false;
-
-	//while (keepseek) { // find every tracker in update
-	//	trackerfound = false;
-	//	for (int kk = 0; kk < (int)_trackers.count; kk++) {
-	//		if (node->_trackers.items[ii] == _trackers.items[kk]) {
-	//			trackerfound = true;
-	//		}
-	//	}
-
-	//	if (trackerfound == false) {
-	//		trackermatch = false;
-	//		keepseek = false;
-	//	}
-
-	//	ii++;
-	//	keepseek = ii < (int)node->_trackers.count ? keepseek : false;
-	//}
-
-	//if (trackermatch == false) {
-	//	SetState(TTSTATE_BASEINFO);
-	//	if (_trackers.count > 0) {
-	//		delete[] _trackers.items;
-	//	}
-	//	_trackers.count = node->_trackers.count;
-	//	_trackers.items = new TrackerCY*[_trackers.count];
-	//	for (int ii = 0; ii < (int)node->_trackers.count; ii++) {
-	//		_trackers.items[ii] = node->_trackers.items[ii];
-	//	}
-	//}
-	return 0;
-}
-
-
 
 int TorrentNode::DispRefresh()
 {
@@ -297,6 +297,10 @@ int TorrentNode::DispRefresh()
 	wsprintf(dispdownspeed, L"%s/s", ttdispbuf);
 	FormatNumberBKMG(ttdispbuf, 1024, upspeed);
 	wsprintf(dispupspeed, L"%s/s", ttdispbuf);
+	FormatNumberBKMG(ttdispbuf, 1024, downloadlimit * 1024);
+	wsprintf(dispdownlimit, L"%s/s", ttdispbuf);
+	FormatNumberBKMG(ttdispbuf, 1024, uploadlimit * 1024);
+	wsprintf(dispuplimit, L"%s/s", ttdispbuf);
 	FormatViewStatus(dispstatus, 1024, status);
 
 	if ((status == TTS_VERIFY) || (status == TTS_PENDING)) {
@@ -329,7 +333,7 @@ int TorrentNode::DispRefresh()
 	convertPiecesData(pieces, piecesdata.items, piecesdata.count, piececount);
 
 	if (__trackers.size() > 0) {
-		wsprintf(disptracker, L"%04d: %s", (*__trackers.begin())->id, (*__trackers.begin())->name.c_str());
+		wsprintf(disptracker, L"%04d: %s", (*__trackers.begin())->groupid, (*__trackers.begin())->name.c_str());
 	}
 	return 0;
 }
@@ -460,7 +464,16 @@ int ViewNode::SetTracker(TrackerCY * tkr)
 
 TorrentNode * ViewNode::GetTorrent()
 {
-	return torrent;
+	TorrentNode* ttn = NULL;
+	if (torrent) {
+		ttn = torrent;
+	}
+	else {
+		if (parent) {
+			ttn = parent->GetTorrent();
+		}
+	}
+	return ttn;
 }
 
 ViewNode * ViewNode::GetTrackerGroup()
@@ -477,21 +490,21 @@ ViewNode * ViewNode::GetTrackerGroup()
 	return tkv;
 }
 
-ViewNode * ViewNode::GetTracker(int id)
-{
-	ViewNode* tkn = NULL;
-	for (std::list<ViewNode*>::iterator itvn = nodes.begin();
-		itvn != nodes.end();
-		itvn++) {
-		if ((*itvn)->GetType() == VNT_TRACKER) {
-			if ((*itvn)->tracker->id == id) {
-				tkn = *itvn;
-			}
-		}
-	}
-
-	return tkn;
-}
+//ViewNode * ViewNode::GetTracker(int id)
+//{
+//	ViewNode* tkn = NULL;
+//	for (std::list<ViewNode*>::iterator itvn = nodes.begin();
+//		itvn != nodes.end();
+//		itvn++) {
+//		if ((*itvn)->GetType() == VNT_TRACKER) {
+//			if ((*itvn)->tracker->id == id) {
+//				tkn = *itvn;
+//			}
+//		}
+//	}
+//
+//	return tkn;
+//}
 
 ViewNode * ViewNode::GetFilesNode()
 {
@@ -519,7 +532,12 @@ wchar_t TorrentFileNode::pathch = L'/';
 int TorrentFileNode::Add(TorrentFileNode * fnd)
 {
 	if (fnd) {
-		nodes[fnd->id] = fnd;
+		if (fnd->IsPath()) {
+			paths[fnd->id] = fnd;
+		}
+		else {
+			files[fnd->id] = fnd;
+		}
 		fnd->parent = this;
 	}
 	return 0;
@@ -546,8 +564,8 @@ TorrentFileNode * TorrentFileNode::GetPathNode(wchar_t * path)
 
 	TorrentFileNode* tpn = nullptr;
 	if (ppt.length() > 0) {
-		for (std::map<long, TorrentFileNode*>::iterator itfn = nodes.begin();
-			itfn != nodes.end();
+		for (std::map<long, TorrentFileNode*>::iterator itfn = paths.begin();
+			itfn != paths.end();
 			itfn++) {
 			if (itfn->second->name.compare(ppt) == 0) {
 				tpn = itfn->second;
@@ -611,13 +629,19 @@ int TorrentFileNode::UpdateStat()
 		count = 0;
 		size = 0;
 		pathcount = 0;
-		for (std::map<long, TorrentFileNode*>::iterator itfn = nodes.begin();
-			itfn != nodes.end();
+		for (std::map<long, TorrentFileNode*>::iterator itfn = paths.begin();
+			itfn != paths.end();
 			itfn++) {
 			itfn->second->UpdateStat();
 			size += itfn->second->size;
-			count += (itfn->second->IsPath()) ? itfn->second->count : 1;
-			pathcount += itfn->second->IsPath() ? 1 : 0;
+			count += itfn->second->count;
+			pathcount += 1;
+		}
+		for (std::map<long, TorrentFileNode*>::iterator itfn = files.begin();
+			itfn != files.end();
+			itfn++) {
+			size += itfn->second->size;
+			count += 1;
 		}
 	}
 	UpdateDisp();
@@ -628,23 +652,32 @@ TorrentFileNode * TorrentFileNode::GetFile(long fid)
 {
 	TorrentFileNode* tfn = NULL;
 	bool keepseek;
-	std::map<long, TorrentFileNode*>::iterator itff = nodes.find(fid);
-	if (itff == nodes.end()) {
-		itff = nodes.begin();
-		keepseek = itff != nodes.end();
+	std::map<long, TorrentFileNode*>::iterator itff = files.find(fid);
+	if (itff == files.end()) {
+		itff = paths.begin();
+		keepseek = itff != paths.end();
 		while (keepseek) {
-			if (itff->second->IsPath()) {
-				tfn = itff->second->GetFile(fid);
-				keepseek = tfn == NULL;
-			}
+			tfn = itff->second->GetFile(fid);
+			keepseek = tfn == NULL;
 			itff++;
-			keepseek = itff == nodes.end() ? false : keepseek;
+			keepseek = itff == paths.end() ? false : keepseek;
 		}
 	}
 	else {
 		tfn = itff->second;
 	}
 	return tfn;
+}
+
+int TorrentFileNode::GetFiles(std::set<TorrentFileNode*>& fls)
+{
+	for (std::map<long, TorrentFileNode*>::iterator itfp = files.begin(); itfp != files.end(); itfp++) {
+		fls.insert(itfp->second);
+	}
+	for (std::map<long, TorrentFileNode*>::iterator itfp = paths.begin(); itfp != paths.end(); itfp++) {
+		itfp->second->GetFiles(fls);
+	}
+	return 0;
 }
 
 long TorrentFileNode::GetPathId()
@@ -657,4 +690,26 @@ long TorrentFileNode::GetPathId()
 		pid = pathid--;
 	}
 	return pid;
+}
+
+TorrentNode * TorrentFileNode::GetTorrent()
+{
+	TorrentNode * trn = NULL;
+	if (pnode) {
+		trn = pnode;
+	} else {
+		if (parent) {
+			trn = parent->GetTorrent();
+		}
+	}
+	return trn;
+}
+
+int TorrentPeerNode::UpdateDisp()
+{
+	FormatDoublePercentage(dispprogress, 30, progress * 100);
+	FormatNumberBKMG(dispup, 30, upspeed);
+	FormatNumberBKMG(dispdown, 30, downspeed);
+	wsprintf(dispport, L"%d", port);
+	return 0;
 }

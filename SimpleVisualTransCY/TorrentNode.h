@@ -38,24 +38,28 @@ struct RawTorrentValuePair
 };
 
 struct TrackerCY {
-	int id = -1;
+	int groupid;
 	std::wstring name;
 	std::wstring url;
 	int rawid;
 };
+
+class TorrentNode;
 
 struct TorrentFileNode {
 	static wchar_t pathch;
 	int id;
 	long pathid = -1;
 	std::wstring name;
-	TorrentFileNode* parent;
-	std::map<long, TorrentFileNode*> nodes;
+	TorrentNode* pnode = NULL;
+	TorrentFileNode* parent = NULL;
+	std::map<long, TorrentFileNode*> paths;
+	std::map<long, TorrentFileNode*> files;
 	unsigned long long size = 0;
 	long count = 0;
 	long pathcount = 0;
 	wchar_t dispbuf[1024] = { 0 };
-	int wanted = 1;
+	bool wanted = true;
 	int priority = 0;
 	unsigned long long completed = 0;
 	
@@ -76,7 +80,29 @@ struct TorrentFileNode {
 		return count >= 0;
 	}
 	TorrentFileNode* GetFile(long fid);
+	int GetFiles(std::set<TorrentFileNode*>& files);
 	long GetPathId();
+	TorrentNode* GetTorrent();
+};
+
+typedef std::set<TorrentFileNode*> TorrentFileSet;
+
+struct TorrentPeerNode
+{
+	std::wstring address;
+	std::wstring name;
+	long upspeed;
+	long downspeed;
+	double progress;
+	long port;
+	bool valid = false;
+
+	wchar_t dispbuf[1024] = { 0 };
+	wchar_t * dispup = dispbuf;
+	wchar_t * dispdown = dispbuf + 15;
+	wchar_t * dispprogress = dispbuf + 30;
+	wchar_t * dispport = dispbuf + 40;
+	int UpdateDisp();
 };
 
 #define TTSTATE_NONE 0x0000
@@ -117,6 +143,10 @@ public:
 	std::set<TrackerCY*> __trackers;
 	long downspeed = 0;
 	long upspeed = 0;
+	long downloadlimit = 0;
+	long uploadlimit = 0;
+	bool downloadlimited = false;
+	bool uploadlimited = false;
 	unsigned long long updatetick = 0;
 	unsigned long long readtick = 0;
 	long status = 0;
@@ -143,6 +173,7 @@ public:
 	bool valid = true;
 	std::wstring magnet;
 	TorrentFileNode* files = nullptr;
+	std::vector<TorrentPeerNode*> peers;
 
 	wchar_t *dispid = dispbuf;
 	wchar_t *dispsize = dispbuf + 10;
@@ -159,14 +190,16 @@ public:
 	wchar_t *disppiececount = dispbuf + 275;
 	wchar_t *disppiecesize = dispbuf + 295;
 	wchar_t *dispavialable = dispbuf + 315;
-	wchar_t *disptracker = dispbuf + 335;
+	wchar_t *dispdownlimit = dispbuf + 335;
+	wchar_t *dispuplimit = dispbuf + 355;
+	wchar_t *disptracker = dispbuf + 375;
 
-	int Copy(TorrentNode* node);
-	int CopyRaw(RawTorrentValuePair* rawnode);
-	int copyRawTrackers(RawTorrentValuePair * rawnode);
-	int copyRawFile(long fid, RawTorrentValuePair * rawnode);
-	int copyRawFileStat(TorrentFileNode* file, RawTorrentValuePair * rawnode);
-	TrackerCY* GetRawTracker(RawTorrentValuePair * rawnode);
+	//int Copy(TorrentNode* node);
+	//int CopyRaw(RawTorrentValuePair* rawnode);
+	//int copyRawTrackers(RawTorrentValuePair * rawnode);
+	//int copyRawFile(long fid, RawTorrentValuePair * rawnode);
+	//int copyRawFileStat(TorrentFileNode* file, RawTorrentValuePair * rawnode);
+	//TrackerCY* GetRawTracker(RawTorrentValuePair * rawnode);
 
 
 	int DispRefresh();
@@ -228,3 +261,5 @@ public:
 	ViewNode* GetFilesNode();
 	ViewNode* GetRoot();
 };
+
+typedef std::set<ViewNode*> ViewNodeSet;

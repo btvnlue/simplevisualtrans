@@ -315,15 +315,16 @@ HWND WindowViewCY::CreateWindowView(HINSTANCE hinst)
 {
 	active = TRUE;
 	hInst = hinst;
+	int rtn;
 	if (windowViewCYClass == 0) {
 		if (szWindowClass[0] == 0) {
-			LoadStringW(hInst, IDC_SIMPLEVISUALTRANSCY, szWindowClass, MAX_LOADSTRING);
+			rtn = LoadStringW(hInst, IDC_SIMPLEVISUALTRANSCYCLASS, szWindowClass, MAX_LOADSTRING);
 		}
 		windowViewCYClass = RegisterWindowViewClass(hInst);
 	}
 	window = this;
 
-	CreateThread(NULL, 0, ThWindowViewCY, this, 0, &thId);
+	HANDLE hwv = CreateThread(NULL, 0, ThWindowViewCY, this, 0, &thId);
 	while (hWnd == NULL) {
 		Sleep(100);
 	}
@@ -378,7 +379,8 @@ ATOM WindowViewCY::RegisterWindowViewClass(HINSTANCE hInst)
 	wcex.lpszClassName = szWindowClass;
 	wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
 
-	return RegisterClassExW(&wcex);
+	ATOM wvc = RegisterClassExW(&wcex);
+	return wvc;
 }
 
 //
@@ -575,7 +577,7 @@ LRESULT WindowViewCY::ListProcessNotify(LPARAM lParam)
 					rtn = CDRF_NOTIFYITEMDRAW;
 				}
 				else if (plvcd->nmcd.dwDrawStage == CDDS_ITEMPREPAINT) {
-					if (plvcd->nmcd.dwItemSpec == TNP_PIECES) {
+					if (plvcd->nmcd.dwItemSpec == view->pieceItemIndex) {
 						rtn = CDRF_NOTIFYSUBITEMDRAW;
 					}
 					else {
@@ -928,6 +930,39 @@ LRESULT WindowViewCY::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 		case IDM_EXIT:
 			U_Close();
 			DestroyWindow(hWnd);
+			break;
+		case ID_CONTEXT_DOWNLIMIT:
+			view->ViewSetLimit(CSLA_DOWN);
+			break;
+		case ID_CONTEXT_UPLIMIT:
+			view->ViewSetLimit(CSLA_UP);
+			break;
+		case ID_CONTEXT_ENABLEDOWN:
+			view->ViewSetLimit(CSLA_ENABLE_DOWN);
+			break;
+		case ID_CONTEXT_ENABLEUP:
+			view->ViewSetLimit(CSLA_ENABLE_UP);
+			break;
+		case ID_CONTEXT_DISABLEDOWN:
+			view->ViewSetLimit(CSLA_DISABLE_DOWN);
+			break;
+		case ID_CONTEXT_DISABLEUP:
+			view->ViewSetLimit(CSLA_DISABLE_UP);
+			break;
+		case ID_CONTEXT_INCLUDE:
+			view->ViewEnableFile(TRUE);
+			break;
+		case ID_CONTEXT_EXCLUDE:
+			view->ViewEnableFile(FALSE);
+			break;
+		case ID_CONTEXT_HIGHPRIORITY:
+			view->ViewPriorityFile(1);
+			break;
+		case ID_CONTEXT_NORMALPRIORITY:
+			view->ViewPriorityFile(0);
+			break;
+		case ID_CONTEXT_LOWPRIORITY:
+			view->ViewPriorityFile(-1);
 			break;
 		case ID_CONTEXT_PAUSE:
 			view->ViewPauseTorrent(TRUE);

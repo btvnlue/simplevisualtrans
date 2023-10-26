@@ -10,6 +10,8 @@
 #include <sstream>
 #include <string>
 
+// TODO: clipboard, remove sub-nodes in tree
+
 WCHAR wbuf[2048];
 
 class VCCreateClipboardRoot : public ViewCommand
@@ -45,6 +47,12 @@ DWORD WINAPI ViewManager::ThViewManagerProc(LPVOID lpParam)
 		}
 	}
 
+	cmd = self->GetCommand();
+	while (cmd) {
+		delete cmd;
+		cmd = self->GetCommand();
+	}
+
 	return 0;
 
 }
@@ -61,11 +69,10 @@ int ViewManager::Start()
 	if (hEvent == NULL) {
 		hEvent = ::CreateEvent(NULL, FALSE, TRUE, NULL);
 	}
+	keeprun = TRUE;
 	VCCreateClipboardRoot* ccc = new VCCreateClipboardRoot();
 	PutCommand(ccc);
-	keeprun = TRUE;
 	hTh = ::CreateThread(NULL, 0, ThViewManagerProc, this, 0, &tid);
-
 
 	return 0;
 }
@@ -73,7 +80,6 @@ int ViewManager::Start()
 int ViewManager::Stop()
 {
 	DWORD dcd;
-
 
 	if (hTh) {
 		keeprun = FALSE;
@@ -97,15 +103,15 @@ int ViewManager::Stop()
 		hEvent = NULL;
 	}
 
-	
+
 	return 0;
 }
 
-class VCUpdateViewNodes : public ViewCommand
+class VCUpdateTorrentNodes : public ViewCommand
 {
 public:
 	TransmissionProfile* profile = NULL;
-	std::set<ViewNode*> viewnodes;
+	//std::set<ViewNode*> viewnodes;
 	std::set<TorrentNode*> torrents;
 	virtual int Process(ViewManager* view)
 	{
@@ -113,13 +119,52 @@ public:
 			for (std::set<TorrentNode*>::iterator ittn = torrents.begin();
 				ittn != torrents.end();
 				ittn++) {
+				profile->UpdateTorrentView(*ittn);
 			}
-			for (std::set<ViewNode*>::iterator itvn = viewnodes.begin();
-				itvn != viewnodes.end();
-				itvn++) {
-				view->ViewUpdateViewNode(*itvn);
+			wsprintf(wbuf, L"[%d] torrents updated", torrents.size());
+			view->LogToView(LTV_RESULT_TORRENT, wbuf);
+		}
+		return 0;
+	}
+};
+
+class VCUpdateFileNodes : public ViewCommand
+{
+public:
+	TransmissionProfile* profile = NULL;
+	//std::set<ViewNode*> viewnodes;
+	std::set<TorrentFileNode*> files;
+	virtual int Process(ViewManager* view)
+	{
+		if (profile) {
+			for (std::set<TorrentFileNode*>::iterator ittn = files.begin();
+				ittn != files.end();
+				ittn++) {
+				profile->UpdateTorrentFileView(*ittn);
 			}
-			//view->ViewSortProfileTotal(profile);
+			wsprintf(wbuf, L"[%d] files updated", files.size());
+			view->LogToView(LTV_RESULT_FILE, wbuf);
+		}
+		return 0;
+	}
+};
+
+class VCUpdateViewNodes : public ViewCommand
+{
+public:
+	TransmissionProfile* profile = NULL;
+	virtual int Process(ViewManager* view)
+	{
+		if (profile) {
+			for (std::set<ViewNode*>::iterator ittn = profile->updateviewnodes.begin();
+				ittn != profile->updateviewnodes.end();
+				ittn++) {
+				view->ViewUpdateViewNode(*ittn);
+			}
+			wsprintf(wbuf, L"[%d] view nodes updated", profile->updateviewnodes.size());
+			view->LogToView(LTV_RESULT_VIEWNODE, wbuf);
+
+			profile->updateviewnodes.clear();
 		}
 		return 0;
 	}
@@ -220,7 +265,7 @@ public:
 		bool keepseek;
 		if (node->valuetype == RTT_OBJECT) {
 			unsigned long ii = 0;
-			keepseek =  ii < node->vvobject.count;
+			keepseek = ii < node->vvobject.count;
 			while (keepseek) {
 				if (wcscmp(L"id", node->vvobject.items[ii].key) == 0) {
 					tid = node->vvobject.items[ii].vvint;
@@ -240,17 +285,6 @@ public:
 			int tid = getRawTorrentId(node);
 			if (tid >= 0) {
 				rtn = profile->UpdateRawTorrent(tid, node);
-				//switch (rtn) {
-				//case UPN_NEWNODE:
-				//	newids.insert(tid);
-				//	break;
-				//case UPN_UPDATE:
-				//	updids.insert(tid);
-				//	break;
-				//case UPN_DELETE:
-				//	delids.insert(tid);
-				//	break;
-				//}
 			}
 		}
 
@@ -354,13 +388,24 @@ public:
 			//wsprintf(wbuf, L"Process raw torrents new [%d] update [%d] delete [%d]", nnn, uuu, ddd);
 			//view->LogToView(LTV_RESULT, wbuf);
 
-			VCUpdateViewNodes* vcuvn = new VCUpdateViewNodes();
+			VCUpdateTorrentNodes* vcuvn = new VCUpdateTorrentNodes();
 			vcuvn->profile = cmd->profile;
 			vcuvn->torrents.insert(profile->updatetorrents.begin(), profile->updatetorrents.end());
-			vcuvn->viewnodes.insert(profile->updateviewnodes.begin(), profile->updateviewnodes.end());
-			profile->updateviewnodes.clear();
+
+			//vcuvn->viewnodes.insert(profile->updateviewnodes.begin(), profile->updateviewnodes.end());
+			//profile->updateviewnodes.clear();
 			profile->updatetorrents.clear();
 			view->PutCommand(vcuvn);
+
+			VCUpdateFileNodes* vcuf = new VCUpdateFileNodes();
+			vcuf->profile = cmd->profile;
+			vcuf->files.insert(profile->updatefiles.begin(), profile->updatefiles.end());
+			view->PutCommand(vcuf);
+			profile->updatefiles.clear();
+
+			VCUpdateViewNodes* vcuv = new VCUpdateViewNodes();
+			vcuv->profile = cmd->profile;
+			view->PutCommand(vcuv);
 		}
 		else {
 			wsprintf(wbuf, L"Done refreshing raw torrents from [%s]...", cmd->profile->url.c_str());
@@ -395,31 +440,36 @@ int ViewManager::DoneProfileLoading(TransmissionProfile * prof)
 
 int ViewManager::PutCommand(ViewCommand * cmd)
 {
-	if (WaitForSingleObject(hEvent, INFINITE) == WAIT_OBJECT_0) {
-		cmds.push_back(cmd);
-		::SetEvent(hEvent);
+	if (keeprun) {
+		if (WaitForSingleObject(hEvent, INFINITE) == WAIT_OBJECT_0) {
+			cmds.push_back(cmd);
+			::SetEvent(hEvent);
+		}
+	}
+	else {
+		delete cmd;
 	}
 	return 0;
 }
 
-int ViewManager::ViewUpdateProfileTorrent(TransmissionProfile * prof, long tid)
-{
-	std::set<ViewNode*> vns;
-	ViewNode* vnd;
-	prof->GetTorrentViewNodes(tid, vns);
-	for (std::set<ViewNode*>::iterator itvn = vns.begin();
-		itvn != vns.end();
-		itvn++) {
-		vnd = *itvn;
-		if (vnd->GetTorrent()) {
-			if (vnd->GetTorrent()->valid == false) {
-				vnd->valid = false;
-			}
-		}
-		ViewUpdateViewNode(*itvn);
-	}
-	return 0;
-}
+//int ViewManager::ViewUpdateProfileTorrent(TransmissionProfile * prof, long tid)
+//{
+//	std::set<ViewNode*> vns;
+//	ViewNode* vnd;
+//	prof->GetTorrentViewNodes(tid, vns);
+//	for (std::set<ViewNode*>::iterator itvn = vns.begin();
+//		itvn != vns.end();
+//		itvn++) {
+//		vnd = *itvn;
+//		if (vnd->GetTorrent()) {
+//			if (vnd->GetTorrent()->valid == false) {
+//				vnd->valid = false;
+//			}
+//		}
+//		ViewUpdateViewNode(*itvn);
+//	}
+//	return 0;
+//}
 
 int ViewManager::ViewUpdateInvalidViewNode(ViewNode* vnd)
 {
@@ -441,7 +491,6 @@ int ViewManager::FullRefreshProfileNodes(TransmissionProfile* prof)
 	CmdFullRefreshTorrents* cmd;
 
 	if (prof->inrefresh == false) {
-		prof->inrefresh = true;
 		cmd = new CmdFullRefreshTorrents();
 		cmd->profile = prof;
 		crt.view = this;
@@ -461,27 +510,25 @@ int ViewManager::RefreshProfileNodeDetail(TransmissionProfile * prof, long tid)
 	CmdFullRefreshTorrents* cmd;
 
 	if (prof->inrefresh == false) {
-		prof->inrefresh = true;
 		cmd = new CmdFullRefreshTorrents();
 		cmd->profile = prof;
 		cmd->dofullyrefresh = false;
 
-		std::set<ViewNode*> vns;
-		GetSelectedViewNodes(vns);
-		for (std::set<ViewNode*>::iterator itvn = vns.begin();
-			itvn != vns.end();
-			itvn++) {
-			if ((*itvn)->GetType() == VNT_TORRENT) {
-				cmd->torrentids.insert((*itvn)->GetTorrent()->id);
-			}
-		}
+		//std::set<ViewNode*> vns;
+		//GetSelectedViewNodes(vns);
+		//for (std::set<ViewNode*>::iterator itvn = vns.begin();
+		//	itvn != vns.end();
+		//	itvn++) {
+		//	if ((*itvn)->GetType() == VNT_TORRENT) {
+		cmd->torrentids.insert(tid);
+		//	}
+		//}
 		crt.view = this;
 		cmd->callback = &crt;
 
 		if (cmd->torrentids.size() > 0) {
 			wsprintf(wbuf, L"Refresh torrents from [%s]...", cmd->profile->url.c_str());
 			LogToView(LTV_REFRESH, wbuf);
-
 			transmissionmgr->PutCommand(cmd);
 		}
 		else {
@@ -499,16 +546,22 @@ class TMCBRefreshSession : public CBCmdRefreshSession
 {
 public:
 	ViewManager* view;
-	virtual int Process(TransmissionManager* mng, CmdRefreshSession* cmd)
+	virtual int ProcessStatus(TransmissionManager* mng, CmdRefreshSession* cmd)
 	{
 		if (cmd) {
 			if (cmd->profile) {
 				view->ListUpdateViewNode(view->currentnode);
-				cmd->profile->inrefresh = false;
 
 				wsprintf(wbuf, L"Done refreshing session from [%s]...", cmd->profile->url.c_str());
 				view->LogToView(LTV_VIEWCHANGE, wbuf);
 			}
+		}
+		return 0;
+	}
+	virtual int ProcessInfo(RawTorrentValuePair * rawinfo, CmdRefreshSession* cmd)
+	{
+		if (cmd->profile) {
+			cmd->profile->copyRawSessionInfo(rawinfo, 0);
 		}
 		return 0;
 	}
@@ -519,7 +572,6 @@ int ViewManager::RefreshProfileStatus(TransmissionProfile * prof)
 	CmdRefreshSession* cmd;
 
 	if (prof->inrefresh == false) {
-		prof->inrefresh = true;
 
 		tmcbrs.view = this;
 		cmd = new CmdRefreshSession();
@@ -548,6 +600,15 @@ TransmissionProfile * ViewManager::GetViewNodeProfile(ViewNode * vnd)
 		}
 	}
 	return prof;
+}
+
+TorrentNode * ViewManager::GetCurrentTorrent()
+{
+	TorrentNode* ttn = NULL;
+	if (currentnode) {
+		ttn = currentnode->GetTorrent();
+	}
+	return ttn;
 }
 
 int ViewManager::ShowContextMenu(int xx, int yy)
@@ -597,6 +658,8 @@ int ViewManager::RefreshCurrentNode()
 			}
 			break;
 		case VNT_TORRENT:
+		case VNT_FILEPATH:
+		case VNT_TRACKER:
 			prof = GetViewNodeProfile(currentnode);
 			if (prof) {
 				TorrentNode* ttn = currentnode->GetTorrent();
@@ -640,7 +703,7 @@ HTREEITEM ViewManager::TreeUpdateViewNode(ViewNode * vnd)
 	HTREEITEM rtn = NULL;
 
 	BOOL procnode = TRUE;
-	
+
 	procnode = vnd->GetType() == VNT_FILE ? FALSE : procnode;
 
 	if (procnode) {
@@ -776,7 +839,7 @@ int ViewManager::ListClearContent()
 int ViewManager::ListSwitchContent()
 {
 	ListClearContent();
-	
+
 	if (currentnode) {
 		int vnt = currentnode->GetType();
 		switch (vnt) {
@@ -902,7 +965,7 @@ int ViewManager::ListSwitchContent()
 			cols = ListView_InsertColumn(hList, cols, &lvc);
 			cols++;
 
-			ListBuildViewNodeContent(currentnode);
+			ListBuildTorrentContent(currentnode);
 			ListView_SetItemCountEx(hList, tnpdisp.size(), LVSICF_NOINVALIDATEALL);
 
 		}
@@ -1175,11 +1238,10 @@ int ViewManager::ListUpdateViewNode(ViewNode* vnupd)
 		case VNT_TORRENT:
 			if (vnupd->GetType() == VNT_TORRENT) {
 				if (currentnode->GetTorrent()->id == vnupd->GetTorrent()->id) {
-					if (vnupd->GetTorrent()->state != 0) {
-						ListBuildViewNodeContent(vnupd);
-						long lstcnt = ListView_GetItemCount(hList);
-						ListView_RedrawItems(hList, 0, lstcnt);
-					}
+					ListBuildTorrentContent(vnupd);
+					long lstcnt = tnpdisp.size();
+					ListView_SetItemCountEx(hList, lstcnt, LVSICF_NOINVALIDATEALL);
+					ListView_RedrawItems(hList, 0, lstcnt);
 				}
 			} // vnupd type torrent
 			break;
@@ -1201,11 +1263,22 @@ int ViewManager::ListUpdateViewNode(ViewNode* vnupd)
 			if (currentnode == vnupd) {
 				TransmissionProfile* prof = GetViewNodeProfile(vnupd);
 				prof->UpdateStatusDispValues();
-				ListBuildViewNodeContent(vnupd);
+				ListBuildTorrentContent(vnupd);
 				long lstcnt = ListView_GetItemCount(hList);
 				ListView_RedrawItems(hList, 0, lstcnt);
 			}
 			break;
+		case VNT_FILEPATH:
+			if (vnupd->GetType() == VNT_FILE) {
+				std::vector<ViewNode*>::iterator itvn = std::find(currentnodelist.begin(), currentnodelist.end(), vnupd);
+				if (itvn != currentnodelist.end()) {
+					int upi = itvn - currentnodelist.begin();
+					long lstcnt = ListView_GetItemCount(hList);
+					if (upi < lstcnt) {
+						ListView_RedrawItems(hList, upi, upi);
+					}
+				}
+			}
 		}
 
 		UpdateWindow(hList);
@@ -1227,7 +1300,7 @@ int ViewManager::ListSortTorrentGroup(int sidx)
 	return 0;
 }
 
-int ViewManager::ListBuildViewNodeContent(ViewNode * vnd)
+int ViewManager::ListBuildTorrentContent(ViewNode * vnd)
 {
 	if (vnd) {
 		tnpdisp.clear();
@@ -1249,8 +1322,13 @@ int ViewManager::ListBuildViewNodeContent(ViewNode * vnd)
 				tnpdisp.insert(tnpdisp.end(), std::pair<std::wstring, std::wstring>(L"Avialable", vtt->dispavialable));
 				tnpdisp.insert(tnpdisp.end(), std::pair<std::wstring, std::wstring>(L"Download Speed /s", vtt->dispdownspeed));
 				tnpdisp.insert(tnpdisp.end(), std::pair<std::wstring, std::wstring>(L"Upload Speed /s", vtt->dispupspeed));
+				tnpdisp.insert(tnpdisp.end(), std::pair<std::wstring, std::wstring>(L"Download Limit /s", vtt->dispdownlimit));
+				tnpdisp.insert(tnpdisp.end(), std::pair<std::wstring, std::wstring>(L"Upload Limit /s", vtt->dispuplimit));
+				tnpdisp.insert(tnpdisp.end(), std::pair<std::wstring, std::wstring>(L"Download Limit Enabled", vtt->downloadlimited ? L"Y" : L"N"));
+				tnpdisp.insert(tnpdisp.end(), std::pair<std::wstring, std::wstring>(L"Upload Limit Enabled", vtt->uploadlimited? L"Y" : L"N"));
 				tnpdisp.insert(tnpdisp.end(), std::pair<std::wstring, std::wstring>(L"Status", vtt->dispstatus));
 				tnpdisp.insert(tnpdisp.end(), std::pair<std::wstring, std::wstring>(L"Pieces", vtt->pieces.c_str()));
+				pieceItemIndex = tnpdisp.size() - 1;
 				tnpdisp.insert(tnpdisp.end(), std::pair<std::wstring, std::wstring>(L"Pieces Count", vtt->disppiececount));
 				tnpdisp.insert(tnpdisp.end(), std::pair<std::wstring, std::wstring>(L"Piece Size", vtt->disppiecesize));
 				tnpdisp.insert(tnpdisp.end(), std::pair<std::wstring, std::wstring>(L"Path", vtt->_path));
@@ -1261,9 +1339,19 @@ int ViewManager::ListBuildViewNodeContent(ViewNode * vnd)
 					ittc != vtt->__trackers.end();
 					ittc++) {
 					wsprintf(wbuf, L"Tracker:%d", ii);
-					wsprintf(wbuf + 128, L"%04d: %s", (*ittc)->id, (*ittc)->url.c_str());
+					wsprintf(wbuf + 128, L"%04d: %s", (*ittc)->groupid, (*ittc)->url.c_str());
 					tnpdisp.insert(tnpdisp.end(), std::pair<std::wstring, std::wstring>(wbuf, wbuf + 128));
 					ii++;
+				}
+				for (std::vector<TorrentPeerNode*>::iterator itpr = vtt->peers.begin();
+					itpr != vtt->peers.end();
+					itpr++) {
+					if ((*itpr)->valid) {
+						wsprintf(wbuf, L"Peer: %s", (*itpr)->name.c_str());
+						wsprintf(wbuf + 128, L"%s:%d Down:%s/s Up:%s/s Have:%s", (*itpr)->address.c_str(), (*itpr)->port, (*itpr)->dispdown, (*itpr)->dispup, (*itpr)->dispprogress);
+						tnpdisp.insert(tnpdisp.end(), std::pair<std::wstring, std::wstring>(wbuf, wbuf + 128));
+						ii++;
+					}
 				}
 			}
 		}
@@ -1287,6 +1375,14 @@ int ViewManager::ListBuildViewNodeContent(ViewNode * vnd)
 				tnpdisp.insert(tnpdisp.end(), std::pair<std::wstring, std::wstring>(L"Current: Files", prof->dispcurrentfiles));
 				tnpdisp.insert(tnpdisp.end(), std::pair<std::wstring, std::wstring>(L"Current: Sessions", prof->dispcurrentsessions));
 				tnpdisp.insert(tnpdisp.end(), std::pair<std::wstring, std::wstring>(L"Current: Active Sessions", prof->dispcurrentactive));
+
+				tnpdisp.insert(tnpdisp.end(), std::pair<std::wstring, std::wstring>(L"Session ID", prof->stat.session.c_str()));
+				tnpdisp.insert(tnpdisp.end(), std::pair<std::wstring, std::wstring>(L"Version", prof->stat.version.c_str()));
+				tnpdisp.insert(tnpdisp.end(), std::pair<std::wstring, std::wstring>(L"RPC Version", prof->disprpc));
+				tnpdisp.insert(tnpdisp.end(), std::pair<std::wstring, std::wstring>(L"Download Limit", prof->dispdownlimit));
+				tnpdisp.insert(tnpdisp.end(), std::pair<std::wstring, std::wstring>(L"Upload Limit", prof->dispuplimit));
+				tnpdisp.insert(tnpdisp.end(), std::pair<std::wstring, std::wstring>(L"Download Limit Enabled", prof->dispdownenable));
+				tnpdisp.insert(tnpdisp.end(), std::pair<std::wstring, std::wstring>(L"Upload Limit Enabled", prof->dispupenable));
 			}
 		}
 		break;
@@ -1324,9 +1420,21 @@ int ViewManager::ListBuildFileContent(ViewNode * vnd)
 {
 	if (vnd) {
 		currentnodelist.clear();
-		std::set<ViewNode*> vns;
-		vnd->GetAllTypeNode(VNT_FILE, vns);
-		currentnodelist.insert(currentnodelist.end(), vns.begin(), vns.end());
+		if (vnd->file) {
+			TransmissionProfile* cpf = GetViewNodeProfile(vnd);
+			if (cpf) {
+				TorrentFileNode * cpn = vnd->file;
+				TorrentFileSet tfs;
+				cpn->GetFiles(tfs);
+				ViewNode* fvd;
+				for (TorrentFileSet::iterator itfs = tfs.begin(); itfs != tfs.end(); itfs++) {
+					fvd = cpf->GetFileViewNode(*itfs);
+					if (fvd) {
+						currentnodelist.insert(currentnodelist.end(), fvd);
+					}
+				}
+			}
+		}
 	}
 	return 0;
 }
@@ -1431,7 +1539,8 @@ ViewManager::ViewManager()
 	: currentnode(nullptr),
 	listsortindex(0),
 	listsortdesc(true),
-	clipboardRoot(NULL)
+	clipboardRoot(NULL),
+	pieceItemIndex(-1)
 {
 	log.count = 128;
 	log.items = new ViewLogItem[log.count];
@@ -1713,6 +1822,70 @@ public:
 	}
 } vcbdt;
 
+#define VCAF_NONE 0
+#define VCAF_ENABLE 1
+#define VCAF_PRIORITY 2
+
+class VCActionFiles : public ViewCommand
+{
+public:
+	int action = VCAF_NONE;
+	int parameter = 0;
+
+	virtual int Process(ViewManager * view) {
+		if (action != VCAF_NONE) {
+			ViewNodeSet vds;
+			TorrentNode* ttn = view->GetCurrentTorrent();
+			if (ttn) {
+				view->GetSelectedViewNodes(vds);
+				TorrentFileSet fns;
+				TransmissionProfile* prof = NULL;
+
+				for (ViewNodeSet::iterator itvn = vds.begin(); itvn != vds.end(); itvn++) {
+					if (prof == NULL) {
+						prof = view->GetViewNodeProfile(*itvn);
+					}
+					switch ((*itvn)->GetType()) {
+					case ViewNodeType::VNT_FILE:
+						if ((*itvn)->file) {
+							fns.insert((*itvn)->file);
+						}
+						break;
+					case ViewNodeType::VNT_FILEPATH:
+						if ((*itvn)->file) {
+							(*itvn)->file->GetFiles(fns);
+						}
+						break;
+					default:
+						break;
+					}
+				}
+
+				if (fns.size() > 0) {
+					CmdActionFile* caf = new CmdActionFile();
+					caf->torrentid = ttn->id;
+					switch (action) {
+					case VCAF_ENABLE:
+						caf->action = CAF_ENABLE;
+						caf->actionparam = parameter;
+						break;
+					case VCAF_PRIORITY:
+						caf->action = CAF_PRIORITY;
+						caf->actionparam = parameter;
+						break;
+					}
+					for (TorrentFileSet::iterator ittf = fns.begin(); ittf != fns.end();ittf++) {
+						caf->fileids.insert((*ittf)->id);
+					}
+					caf->profile = prof;
+					view->transmissionmgr->PutCommand(caf);
+				}
+			}
+		}
+		return 0;
+	}
+};
+
 #define VCA_DELETE 1
 #define VCA_PAUSE 2
 #define VCA_UNPAUSE 3
@@ -1739,10 +1912,11 @@ public:
 				vnd = *itvn;
 				if (vnd->GetTorrent()) {
 					cdt->ids.insert(vnd->GetTorrent()->id);
+					cdt->profile = view->GetViewNodeProfile(vnd);
 				}
 			}
 			vcbdt.view = view;
-			cdt->profile = view->defaultprofile;
+			cdt->profile = cdt->profile ? cdt->profile : view->defaultprofile;
 			cdt->callback = &vcbdt;
 
 			switch (action)
@@ -1836,6 +2010,24 @@ int ViewManager::ViewPauseTorrent(BOOL dopause)
 	return 0;
 }
 
+int ViewManager::ViewEnableFile(BOOL enable)
+{
+	VCActionFiles* vcf = new VCActionFiles();
+	vcf->action = VCAF_ENABLE;
+	vcf->parameter = enable ? 1 : 0;
+	PutCommand(vcf);
+	return 0;
+}
+
+int ViewManager::ViewPriorityFile(int spr)
+{
+	VCActionFiles* vcf = new VCActionFiles();
+	vcf->action = VCAF_PRIORITY;
+	vcf->parameter = spr;
+	PutCommand(vcf);
+	return 0;
+}
+
 int ViewManager::ViewVerifyTorrent()
 {
 	VCActionTorrent* vcd = new VCActionTorrent();
@@ -1863,7 +2055,7 @@ int ViewManager::ViewSetLocation()
 				if (wbuf[0] == 0) {
 					wsprintf(wwb, L"%d", vnd->GetTorrent()->id);
 				}
-				else 
+				else
 				{
 					wsprintf(wwb, L"%s,%d", wbuf, vnd->GetTorrent()->id);
 				}
@@ -1879,6 +2071,99 @@ int ViewManager::ViewSetLocation()
 			Edit_SetText(hInput, wbuf + 1024);
 			SetFocus(hInput);
 		}
+	}
+	return 0;
+}
+
+int ViewManager::ViewSetLimit(int vslup)
+{
+	TransmissionProfile* prof = NULL;
+	std::set<ViewNode*> vns;
+
+	if (currentnode) {
+		prof = GetViewNodeProfile(currentnode);
+		if ((currentnode->GetType() == VNT_GROUP) || (currentnode->GetType() == VNT_TORRENT)) {
+			GetSelectedViewNodes(vns);
+		}
+	}
+	if (prof == NULL) {
+		prof = defaultprofile;
+	}
+
+	switch (vslup)
+	{
+	case CSLA_DOWN:
+	case CSLA_UP:
+		if (prof) {
+			const wchar_t * updowns = vslup == CSLA_UP ? L"up" : L"down";
+
+			if (wcslen(wbuf) > 0) {
+				wsprintf(wbuf, L"setlimit %s %d", updowns, vslup ? prof->stat.uplimit : prof->stat.downlimit);
+				SetFocus(hInput);
+			}
+
+			if (vns.size() > 0) {
+				wcscat_s(wbuf, L" ");
+				wchar_t* wtch = wbuf + 1024;
+				for (std::set<ViewNode*>::iterator itvn = vns.begin(); itvn != vns.end(); itvn++) {
+					if ((*itvn)->GetType() == VNT_TORRENT) {
+						wsprintf(wtch, L"%d", (*itvn)->GetTorrent()->id);
+						wcscat_s(wbuf, 1024, wtch);
+						wcscat_s(wbuf, 1024, L",");
+					}
+				}
+			}
+
+			Edit_SetText(hInput, wbuf);
+		}
+		break;
+	case CSLA_ENABLE_UP:
+	case CSLA_ENABLE_DOWN:
+		if (prof) {
+			const wchar_t * updowns = vslup == CSLA_ENABLE_UP ? L"up" : L"down";
+
+			wsprintf(wbuf, L"enablelimit %s", updowns);
+			if (vns.size() > 0) {
+				wcscat_s(wbuf, L" ");
+				wchar_t* wtch = wbuf + 1024;
+				for (std::set<ViewNode*>::iterator itvn = vns.begin(); itvn != vns.end(); itvn++) {
+					if ((*itvn)->GetType() == VNT_TORRENT) {
+						wsprintf(wtch, L"%d", (*itvn)->GetTorrent()->id);
+						wcscat_s(wbuf, 1024, wtch);
+						wcscat_s(wbuf, 1024, L",");
+					}
+				}
+			}
+
+			Edit_SetText(hInput, wbuf);
+			SetFocus(hInput);
+			ProcessInputCommand();
+		}
+
+
+		break;
+	case CSLA_DISABLE_UP:
+	case CSLA_DISABLE_DOWN:
+		if (prof) {
+			const wchar_t * updowns = vslup == CSLA_DISABLE_UP ? L"up" : L"down";
+
+			wsprintf(wbuf, L"disablelimit %s", updowns);
+			if (vns.size() > 0) {
+				wcscat_s(wbuf, L" ");
+				wchar_t* wtch = wbuf + 1024;
+				for (std::set<ViewNode*>::iterator itvn = vns.begin(); itvn != vns.end(); itvn++) {
+					if ((*itvn)->GetType() == VNT_TORRENT) {
+						wsprintf(wtch, L"%d", (*itvn)->GetTorrent()->id);
+						wcscat_s(wbuf, 1024, wtch);
+						wcscat_s(wbuf, 1024, L",");
+					}
+				}
+			}
+			Edit_SetText(hInput, wbuf);
+			SetFocus(hInput);
+			ProcessInputCommand();
+		}
+		break;
 	}
 	return 0;
 }
@@ -1919,6 +2204,12 @@ int ViewManager::GetSelectedViewNodes(std::set<ViewNode*>& vds)
 			break;
 		case VNT_CLIPBOARD_ITEM:
 			vds.insert(currentnode);
+			break;
+		case VNT_FILEPATH:
+			ListGetSelectedViewNodes(vds);
+			if (vds.size() <= 0) {
+				vds.insert(currentnodelist.begin(), currentnodelist.end());
+			}
 			break;
 		}
 	}
@@ -1968,13 +2259,14 @@ int splitString(const wchar_t* str, std::vector<std::wstring>& strset, const wch
 		wcscpy_s(workstr, 1024, wws);
 		fsp = wcsstr(workstr, delim);
 	}
-	
+
 	if (wcslen(workstr) > 0) {
 		strset.insert(strset.end(), workstr);
 	}
 	return 0;
 }
 
+//TODO: cmds compare
 int ViewManager::ProcessInputCommand()
 {
 	int rtn = Edit_GetText(hInput, wbuf, 1024);
@@ -1988,14 +2280,26 @@ int ViewManager::ProcessInputCommand()
 
 		if (cmds.size() > 0) {
 			if (cmdIdentify(L"setpath", cmds.at(0).c_str()) == 0) {
-				PrcessInputCommandSetLocation(cmds);
+				ProcessInputCommandSetLocation(cmds);
+			}
+			if (cmdIdentify(L"setlimit", cmds.at(0).c_str()) == 0) {
+				ProcessInputCommandSetLimit(cmds);
+			}
+			if (cmdIdentify(L"enablelimit", cmds.at(0).c_str()) == 0) {
+				ProcessInputCommandSetLimit(cmds);
+			}
+			if (cmdIdentify(L"disablelimit", cmds.at(0).c_str()) == 0) {
+				ProcessInputCommandSetLimit(cmds);
+			}
+			if (cmdIdentify(L"settorrentlimit", cmds.at(0).c_str()) == 0) {
+				ProcessInputCommandSetTorrentLimit(cmds);
 			}
 		}
 	}
 	return 0;
 }
 
-class TMCBCmdSetLocation: public CmdSetLocationCB {
+class TMCBCmdSetLocation : public CmdSetLocationCB {
 public:
 	ViewManager* view;
 	virtual int Process(CmdSetLocation* cmd) {
@@ -2005,7 +2309,7 @@ public:
 	}
 } tmcbcsl;
 
-int ViewManager::PrcessInputCommandSetLocation(std::vector<std::wstring>& cmds)
+int ViewManager::ProcessInputCommandSetLocation(std::vector<std::wstring>& cmds)
 {
 	std::vector<std::wstring> ids;
 	std::set<int> iids;
@@ -2026,6 +2330,201 @@ int ViewManager::PrcessInputCommandSetLocation(std::vector<std::wstring>& cmds)
 			cmd->profile = defaultprofile;
 			tmcbcsl.view = this;
 			cmd->callback = &tmcbcsl;
+
+			transmissionmgr->PutCommand(cmd);
+		}
+	}
+	return 0;
+}
+
+int ViewManager::ProcessInputCommandSetLimit(std::vector<std::wstring>& cmds)
+{
+	int ltt = 0;
+	int lmtspeed = 0;
+	TransmissionProfile * prof = NULL;
+
+	if (currentnode) {
+		prof = GetViewNodeProfile(currentnode);
+	}
+	if (prof == NULL) {
+		prof = defaultprofile;
+	}
+	if (prof) {
+		if (cmds.at(0).compare(L"setlimit") == 0) {
+			if (cmds.size() >= 3) {
+				if (cmds.at(1).compare(L"up") == 0) {
+					ltt = CSLA_UP;
+				}
+				else {
+					ltt = CSLA_DOWN;
+				}
+
+				lmtspeed = _wtoi(cmds.at(2).c_str());
+				CmdSetLimit* cmd = new CmdSetLimit();
+				cmd->profile = prof;
+				cmd->limitspeed = lmtspeed;
+				cmd->limitaction = ltt;
+
+				std::vector<std::wstring> tidss;
+				if (cmds.size() > 3) {
+					splitString(cmds.at(3).c_str(), tidss, L",");
+					for (std::vector<std::wstring>::iterator itvs = tidss.begin(); itvs != tidss.end(); itvs++) {
+						cmd->tidset.insert(_wtoi((*itvs).c_str()));
+					}
+				}
+
+				transmissionmgr->PutCommand(cmd);
+			}
+		}
+		if (cmds.at(0).compare(L"enablelimit") == 0) {
+			if (cmds.size() >= 2) {
+				if (cmds.at(1).compare(L"up") == 0) {
+					ltt = CSLA_ENABLE_UP;
+				}
+				else {
+					ltt = CSLA_ENABLE_DOWN;
+				}
+
+				CmdSetLimit* cmd = new CmdSetLimit();
+				cmd->profile = prof;
+				cmd->limitaction = ltt;
+
+				std::vector<std::wstring> tidss;
+				if (cmds.size() > 2) {
+					splitString(cmds.at(2).c_str(), tidss, L",");
+					for (std::vector<std::wstring>::iterator itvs = tidss.begin(); itvs != tidss.end(); itvs++) {
+						cmd->tidset.insert(_wtoi((*itvs).c_str()));
+					}
+				}
+
+				transmissionmgr->PutCommand(cmd);
+			}
+		}
+		if (cmds.at(0).compare(L"disablelimit") == 0) {
+			if (cmds.size() >= 2) {
+				if (cmds.at(1).compare(L"up") == 0) {
+					ltt = CSLA_DISABLE_UP;
+				}
+				else {
+					ltt = CSLA_DISABLE_DOWN;
+				}
+
+				CmdSetLimit* cmd = new CmdSetLimit();
+				cmd->profile = prof;
+				cmd->limitaction = ltt;
+				std::vector<std::wstring> tidss;
+				if (cmds.size() > 2) {
+					splitString(cmds.at(2).c_str(), tidss, L",");
+					for (std::vector<std::wstring>::iterator itvs = tidss.begin(); itvs != tidss.end(); itvs++) {
+						cmd->tidset.insert(_wtoi((*itvs).c_str()));
+					}
+				}
+
+				transmissionmgr->PutCommand(cmd);
+			}
+		}
+	}
+	return 0;
+}
+
+int ViewManager::ProcessInputCommandSetTorrentLimit(std::vector<std::wstring>& cmds)
+{
+	int ltt = 0;
+	int lmtspeed = 0;
+	TransmissionProfile * prof = NULL;
+
+	if (currentnode) {
+		prof = GetViewNodeProfile(currentnode);
+	}
+	if (prof == NULL) {
+		prof = defaultprofile;
+	}
+	if (prof) {
+		if (cmds.at(0).compare(L"settorrentlimit") == 0) {
+			if (cmds.size() >= 3) {
+				if (cmds.at(1).compare(L"up") == 0) {
+					ltt = CSLA_UP;
+				}
+				else {
+					ltt = CSLA_DOWN;
+				}
+
+				lmtspeed = _wtoi(cmds.at(3).c_str());
+				std::vector<std::wstring> tidss;
+				splitString(cmds.at(2).c_str(), tidss, L",");
+
+				if (tidss.size() > 0) {
+					CmdSetLimit* cmd = new CmdSetLimit();
+					cmd->profile = prof;
+					cmd->limitspeed = lmtspeed;
+					cmd->limitaction = ltt;
+
+					for (std::vector<std::wstring>::iterator itvs = tidss.begin(); itvs != tidss.end(); itvs++) {
+						cmd->tidset.insert(_wtoi((*itvs).c_str()));
+					}
+
+					transmissionmgr->PutCommand(cmd);
+				}
+			}
+		}
+		if (cmds.at(0).compare(L"enablelimit") == 0) {
+			if (cmds.size() >= 2) {
+				if (cmds.at(1).compare(L"up") == 0) {
+					ltt = CSLA_ENABLE_UP;
+				}
+				else {
+					ltt = CSLA_ENABLE_DOWN;
+				}
+
+				CmdSetLimit* cmd = new CmdSetLimit();
+				cmd->profile = prof;
+				cmd->limitaction = ltt;
+
+				transmissionmgr->PutCommand(cmd);
+			}
+		}
+		if (cmds.at(0).compare(L"disablelimit") == 0) {
+			if (cmds.size() >= 2) {
+				if (cmds.at(1).compare(L"up") == 0) {
+					ltt = CSLA_DISABLE_UP;
+				}
+				else {
+					ltt = CSLA_DISABLE_DOWN;
+				}
+
+				CmdSetLimit* cmd = new CmdSetLimit();
+				cmd->profile = prof;
+				cmd->limitaction = ltt;
+
+				transmissionmgr->PutCommand(cmd);
+			}
+		}
+	}
+	return 0;
+}
+int ViewManager::ProcessInputCommandEnableLimit(std::vector<std::wstring>& cmds)
+{
+	int ltt = 0;
+	TransmissionProfile * prof = NULL;
+
+	if (currentnode) {
+		prof = GetViewNodeProfile(currentnode);
+	}
+	if (prof == NULL) {
+		prof = defaultprofile;
+	}
+	if (prof) {
+		if (cmds.size() >= 2) {
+			if (cmds.at(1).compare(L"up") == 0) {
+				ltt = CSLA_ENABLE_UP;
+			}
+			else {
+				ltt = CSLA_ENABLE_DOWN;
+			}
+
+			CmdSetLimit* cmd = new CmdSetLimit();
+			cmd->profile = prof;
+			cmd->limitaction = ltt;
 
 			transmissionmgr->PutCommand(cmd);
 		}

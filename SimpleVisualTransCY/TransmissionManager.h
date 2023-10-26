@@ -81,6 +81,23 @@ public:
 	CmdSetLocationCB* callback = NULL;
 };
 
+#define CSLA_UP 1
+#define CSLA_DOWN 2
+#define CSLA_ENABLE_UP 3
+#define CSLA_ENABLE_DOWN 4
+#define CSLA_DISABLE_UP 5
+#define CSLA_DISABLE_DOWN 6
+
+class CmdSetLimit : public ManagerCommand
+{
+public:
+	TransmissionProfile * profile;
+	int limitaction;
+	int limitspeed;
+	std::set<int> tidset;
+	virtual int Process(TransmissionManager * mgr);
+};
+
 class CmdLoadProfile;
 class CmdLoadProfileCB
 {
@@ -102,12 +119,15 @@ class CmdRefreshSession : public ManagerCommand
 public:
 	TransmissionProfile* profile = NULL;
 	int Process(TransmissionManager* mng);
+	int ProcessSessionStatus(TransmissionManager* mng);
+	int ProcessSessionInfo(TransmissionManager* mng);
 	CBCmdRefreshSession* callback = NULL;
 };
 class CBCmdRefreshSession
 {
 public:
-	virtual int Process(TransmissionManager* mng, CmdRefreshSession* cmd) = 0;
+	virtual int ProcessStatus(TransmissionManager* mng, CmdRefreshSession* cmd) = 0;
+	virtual int ProcessInfo(RawTorrentValuePair * rawinfo, CmdRefreshSession* cmd) = 0;
 };
 
 class CmdCommitTorrentsCB
@@ -123,6 +143,29 @@ public:
 	TransmissionProfile* profile;
 	int Process(TransmissionManager* mng);
 	CmdCommitTorrentsCB* callback = NULL;
+};
+
+#define CAF_NONE 0
+#define CAF_ENABLE 1
+#define CAF_PRIORITY 2
+
+class CmdActionFile;
+class CmdActionFileCB
+{
+public:
+	virtual int Process(CmdActionFile* cmd) = 0;
+};
+
+class CmdActionFile : public ManagerCommand
+{
+public:
+	std::set<int> fileids;
+	int action = CAF_NONE;
+	int actionparam;
+	int torrentid;
+	TransmissionProfile* profile;
+	int Process(TransmissionManager* mng);
+	CmdActionFileCB* callback = NULL;
 };
 
 class CmdActionTorrent;

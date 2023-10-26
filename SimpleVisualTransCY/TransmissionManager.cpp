@@ -81,6 +81,10 @@ TransmissionManager::TransmissionManager()
 		detailfields.insert(L"fileStats");
 		detailfields.insert(L"peers");
 		detailfields.insert(L"peersFrom");
+		detailfields.insert(L"downloadLimit");
+		detailfields.insert(L"downloadLimited");
+		detailfields.insert(L"uploadLimit");
+		detailfields.insert(L"uploadLimited");
 	}
 }
 
@@ -754,7 +758,8 @@ struct WideFileStream {
 		Ch cvv = 0;
 		if (doneall) {
 			cvv = 0;
-		} else {
+		}
+		else {
 			if (curbufsize_ == 0) {
 				LoadBuffer();
 			}
@@ -767,7 +772,8 @@ struct WideFileStream {
 		Ch cvv = 0;
 		if (doneall) {
 			cvv = 0;
-		} else {
+		}
+		else {
 			cvv = Peek();
 			curbufpos_++;
 			if (curbufpos_ >= curbufsize_) {
@@ -909,7 +915,7 @@ int CmdFullRefreshTorrents::RequestServiceRefreshReduced()
 		}
 		else {
 			UINT urt = GetTempFileName(L".", L"_sp", 0, tmbuf);
-			hrdat = CreateFile(tmbuf, GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_NEW | OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_DELETE_ON_CLOSE, NULL);
+			hrdat = CreateFile(tmbuf, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_NEW | OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_DELETE_ON_CLOSE, NULL);
 
 			qrt = curl->SendCurlRequestFileHandle(profile, xquery, hrdat);
 		}
@@ -933,9 +939,6 @@ int CmdFullRefreshTorrents::RequestServiceRefreshReduced()
 		else {
 			qrt = -2;
 		}
-
-		DeleteFile(resp.c_str());
-		//}
 	}
 
 	if (!domemreq) {
@@ -953,70 +956,14 @@ int CmdFullRefreshTorrents::RequestServiceRefreshReduced()
 
 	BufferedJsonAllocator::GetInstance()->Reset();
 
-	//if (qrt == 0) {
-	//	TorrentNodeVT* ctt;
-	//	std::set<TorrentNodeVT*> tuts;
-	//	std::for_each(allnodes->nodes.begin(), allnodes->nodes.end(), [&tuts, ptick](TorrentNodeVT* node) {
-	//		if (node->updatetick >= ptick) {
-	//			tuts.insert(node);
-	//		}
-	//	});
-	//	std::for_each(tuts.begin(), tuts.end(), [ptick, this, req](TorrentNodeVT* node) {
-	//		if (node->valid) {
-	//			UpdateTrackerGroups(node);
-	//			std::list<TorrentGroupVT*> grps;
-	//			grps.clear();
-	//			grouproot->GetTorrentGroups(node, grps);
-	//			std::for_each(grps.begin(), grps.end(), [this, node, req](TorrentGroupVT*& grp) {
-	//				req->refresh.cbgroupnode(req, node, grp);
-	//			});
-	//		}
-	//		if (req->refresh.reqfiles) {
-	//			req->refresh.cbnodefile(req, node);
-	//		}
-	//		if (req->refresh.reqfilestat) {
-	//			for (unsigned long ii = 0; ii < node->files.count; ii++) {
-	//				if (node->files.items[ii].updatetick >= ptick) {
-	//					req->refresh.cbnodefilestat(req, node, node->files.items + ii);
-	//				}
-	//			}
-	//			//req->refresh.cbnodefilestat(req, NULL, NULL);
-	//		}
-	//	});
-	//	std::for_each(removed.begin(), removed.end(), [&, this, req](const long tid) {
-	//		ctt = allnodes->GetIdTorrent(tid);
-	//		if (ctt) {
-	//			ctt->valid = false;
-	//			std::list<TorrentGroupVT*> groups;
-	//			grouproot->GetTorrentGroups(ctt, groups);
-	//			std::for_each(groups.begin(), groups.end(), [req, ctt](TorrentGroupVT* group) {
-	//				req->refresh.cbremovenode(req, ctt, group);
-	//			});
-	//		}
-	//	});
-
-	//	UpdateTorrentGroups(grouproot);
-	//	std::set<TorrentGroupVT*> gps;
-	//	grouproot->GetGroups(gps);
-	//	std::for_each(gps.begin(), gps.end(), [ptick, req](TorrentGroupVT* grp) {
-	//		if (ptick < grp->updatetick) {
-	//			(*req->refresh.cbgroupgroup)(req, grp, grp->parent);
-	//		}
-	//	});
-	//	req->refresh.cbgroupnode(req, NULL, NULL);
-	//}
-	//else {
-	//	std::wstring estr = GetErrorString(qrt);
-	//	(*req->refresh.cbfailed)(req, estr, qrt);
-	//}
-
 	return qrt;
 }
 
 int CmdFullRefreshTorrents::Process(TransmissionManager* mgr)
 {
 	if (profile) {
-		//profile->inrefresh = true;
+		profile->inrefresh = true;
+
 		switch (profile->state)
 		{
 		case DONE_FILL:
@@ -1051,6 +998,7 @@ int CmdFullRefreshTorrents::Process(TransmissionManager* mgr)
 
 		profile->inrefresh = false;
 	}
+
 	return this->returncode;
 }
 
@@ -1366,15 +1314,26 @@ int extractSessionStatus(std::wstring& sss, TransmissionProfile* prof)
 
 int CmdRefreshSession::Process(TransmissionManager * mng)
 {
-	std::wstring req;
 	int rtn = 0;
 
 	if (profile) {
-		rtn = buildSessionStatusRequest(req);
+		profile->inrefresh = true;
+		ProcessSessionStatus(mng);
+		ProcessSessionInfo(mng);
+		BufferedJsonAllocator::GetInstance()->Reset();
+		profile->inrefresh = false;
 	}
 	else {
 		rtn = -1;
 	}
+
+	return rtn;
+}
+
+int CmdRefreshSession::ProcessSessionStatus(TransmissionManager * mng)
+{
+	std::wstring req;
+	int rtn = buildSessionStatusRequest(req);
 
 	std::wstring resp;
 
@@ -1386,7 +1345,6 @@ int CmdRefreshSession::Process(TransmissionManager * mng)
 
 	if (rtn == 0) {
 		int csl = resp.length();
-		//char* cresp = (char*)malloc(csl + 1);
 		char* cresp = (char*)BufferedJsonAllocator::GetInstance()->Malloc(csl + 1);
 		if (cresp) {
 			csl = WideCharToMultiByte(CP_ACP, 0, resp.c_str(), csl, cresp, csl + 1, NULL, NULL);
@@ -1394,19 +1352,94 @@ int CmdRefreshSession::Process(TransmissionManager * mng)
 			std::wstring ucoderesp;
 
 			ConvertUTFCodePure(cresp, ucoderesp);
-			//free(cresp);
-
 			rtn = extractSessionStatus(ucoderesp, profile);
 		}
 	}
 
 	if (callback) {
-		callback->Process(mng, this);
+		callback->ProcessStatus(mng, this);
+	}
+
+	return rtn;
+}
+
+int buildRefreshSessionInfo(_Out_ std::wstring& out)
+{
+	rapidjson::GenericDocument<rapidjson::UTF16<>> rjd(rapidjson::kObjectType);
+	rapidjson::GenericValue<rapidjson::UTF16<>> fdary(rapidjson::kArrayType);
+	//rapidjson::GenericValue<rapidjson::UTF16<>> idary(rapidjson::kArrayType);
+	rapidjson::GenericDocument<rapidjson::UTF16<>>::AllocatorType& allocator = rjd.GetAllocator();
+	rapidjson::GenericValue<rapidjson::UTF16<>> vvv(rapidjson::kStringType);
+	rapidjson::GenericValue<rapidjson::UTF16<>> args(rapidjson::kObjectType);
+	rapidjson::GenericValue<rapidjson::UTF16<>> fields(rapidjson::kObjectType);
+
+	fdary.PushBack(L"session-id", allocator);
+	fdary.PushBack(L"rpc-version", allocator);
+	fdary.PushBack(L"version", allocator);
+	fdary.PushBack(L"config-dir", allocator);
+	fdary.PushBack(L"speed-limit-down", allocator);
+	fdary.PushBack(L"speed-limit-down-enabled", allocator);
+	fdary.PushBack(L"speed-limit-up-enabled", allocator);
+	fdary.PushBack(L"speed-limit-up", allocator);
+	fdary.PushBack(L"alt-speed-enabled", allocator);
+	fdary.PushBack(L"alt-speed-down", allocator);
+	fdary.PushBack(L"alt-speed-up", allocator);
+	fdary.PushBack(L"download-dir", allocator);
+
+	fields.AddMember(L"fields", fdary, allocator);
+	rjd.AddMember(L"arguments", fields, allocator);
+	rjd.AddMember(L"method", L"session-get", allocator);
+	rjd.AddMember(L"tag", 8, allocator);
+
+	rapidjson::GenericStringBuffer<rapidjson::UTF16<>> sbuf;
+	rapidjson::Writer<rapidjson::GenericStringBuffer<rapidjson::UTF16<>>, rapidjson::UTF16<>> writer(sbuf);
+	rjd.Accept(writer);
+
+	out = sbuf.GetString();
+	return 0;
+}
+
+int CmdRefreshSession::ProcessSessionInfo(TransmissionManager * mng)
+{
+	int qrt = 0;
+	std::set<long> removed;
+	//ULONGLONG ptick = GetTickCount64();
+	//std::wstring ucoderesp;
+	std::wstring xquery;
+	RawTorrentValuePair rtvp;
+
+	qrt = buildRefreshSessionInfo(xquery);
+
+	std::wstring resp;
+	HANDLE hrdat = NULL;
+	if (qrt == 0) {
+		CurlSessionCY* curl = CurlSessionCY::GetInstance();
+		qrt = curl->SendCurlRequest(profile, xquery, resp);
+	}
+
+	if (qrt == 0) {
+		rapidjson::GenericDocument<rapidjson::UTF16<>> jdoc;
+
+		rapidjson::GenericStringStream<rapidjson::UTF16<>> jss((wchar_t*)resp.c_str());
+		jdoc.ParseStream(jss);
+
+		if (!jdoc.HasParseError()) {
+			qrt = extractJsonObjectBuffer(jdoc, &rtvp);
+		}
+		else {
+			qrt = -2;
+		}
+	}
+
+	if (qrt == 0) {
+		if (callback) {
+			callback->ProcessInfo(&rtvp, this);
+		}
 	}
 
 	BufferedJsonAllocator::GetInstance()->Reset();
 
-	return rtn;
+	return qrt;
 }
 
 //int CmdRefreshTorrentsDetail::RequestTorrentDetailRefresh(std::set<int>& tss, ItemArray<TorrentNode*>& tws)
@@ -1619,3 +1652,205 @@ int BufferAllocator::FreeAll()
 	return 0;
 }
 
+int buildFilesRequest(int tid, std::set<int> fids, int action, int param, std::wstring& req)
+{
+	int rtn = 0;
+
+	rapidjson::GenericDocument<rapidjson::UTF16<>> rjd(rapidjson::kObjectType);
+	rapidjson::GenericValue<rapidjson::UTF16<>> idary(rapidjson::kArrayType);
+	rapidjson::GenericValue<rapidjson::UTF16<>> tidary(rapidjson::kArrayType);
+	rapidjson::GenericDocument<rapidjson::UTF16<>>::AllocatorType& allocator = rjd.GetAllocator();
+
+	for (std::set<int>::iterator itfd = fids.begin(); itfd != fids.end(); itfd++) {
+		idary.PushBack((int)*itfd, allocator);
+	}
+	rapidjson::GenericValue<rapidjson::UTF16<>> args(rapidjson::kObjectType);
+	tidary.PushBack((int)tid, allocator);
+	args.AddMember(L"ids", tidary, allocator);
+
+	switch (action)
+	{
+	case CAF_ENABLE:
+		if (param) {
+			args.AddMember(L"files-wanted", idary, allocator);
+		}
+		else {
+			args.AddMember(L"files-unwanted", idary, allocator);
+		}
+		rjd.AddMember(L"method", L"torrent-set", allocator);
+		break;
+	case CAF_PRIORITY:
+		if (param > 0) {
+			args.AddMember(L"priority-high", idary, allocator);
+		}
+		else if (param < 0) {
+			args.AddMember(L"priority-low", idary, allocator);
+		}
+		else {
+			args.AddMember(L"priority-normal", idary, allocator);
+		}
+		rjd.AddMember(L"method", L"torrent-set", allocator);
+		break;
+	default:
+		rtn = 100;
+		break;
+	}
+
+	if (rtn == 0) {
+		rjd.AddMember(L"arguments", args, allocator);
+		rjd.AddMember(L"tag", 6, allocator);
+
+		rapidjson::GenericStringBuffer<rapidjson::UTF16<>> sbuf;
+		rapidjson::Writer<rapidjson::GenericStringBuffer<rapidjson::UTF16<>>, rapidjson::UTF16<>> writer(sbuf);
+		rjd.Accept(writer);
+
+		req = sbuf.GetString();
+	}
+	return rtn;
+}
+
+int CmdActionFile::Process(TransmissionManager * mng)
+{
+	int qrt = 0;
+
+	if (profile) {
+		std::wstring xquery;
+
+		buildFilesRequest(torrentid, fileids, action, actionparam, xquery);
+		CurlSessionCY* curl = CurlSessionCY::GetInstance();
+		std::wstring resp;
+
+		qrt = curl->SendCurlRequest(profile, xquery, resp);
+	}
+	else {
+		qrt = -1;
+	}
+
+	if (callback) {
+		callback->Process(this);
+	}
+
+	BufferedJsonAllocator::GetInstance()->Reset();
+
+	return qrt;
+}
+
+int buildSetLimitRequest(int act, int lmt, _Out_ std::wstring& out)
+{
+	rapidjson::GenericDocument<rapidjson::UTF16<>> rjd(rapidjson::kObjectType);
+	rapidjson::GenericValue<rapidjson::UTF16<>> fields(rapidjson::kObjectType);
+	rapidjson::GenericValue<rapidjson::UTF16<>> idary(rapidjson::kArrayType);
+	rapidjson::GenericDocument<rapidjson::UTF16<>>::AllocatorType& allocator = rjd.GetAllocator();
+	rapidjson::GenericValue<rapidjson::UTF16<>> vvv(rapidjson::kStringType);
+	rapidjson::GenericValue<rapidjson::UTF16<>> args(rapidjson::kObjectType);
+
+	switch (act) {
+	case CSLA_DOWN:
+		fields.AddMember(L"speed-limit-down", (int)lmt, allocator);
+		break;
+	case CSLA_UP:
+		fields.AddMember(L"speed-limit-up", (int)lmt, allocator);
+		break;
+	case CSLA_ENABLE_DOWN:
+		fields.AddMember(L"speed-limit-down-enabled", (bool)true, allocator);
+		break;
+	case CSLA_ENABLE_UP:
+		fields.AddMember(L"speed-limit-up-enabled", (bool)true, allocator);
+		break;
+	case CSLA_DISABLE_DOWN:
+		fields.AddMember(L"speed-limit-down-enabled", (bool)false, allocator);
+		break;
+	case CSLA_DISABLE_UP:
+		fields.AddMember(L"speed-limit-up-enabled", (bool)false, allocator);
+		break;
+
+	default:
+		break;
+	}
+	rjd.AddMember(L"arguments", fields, allocator);
+	rjd.AddMember(L"method", L"session-set", allocator);
+	rjd.AddMember(L"tag", 9, allocator);
+
+	rapidjson::GenericStringBuffer<rapidjson::UTF16<>> sbuf;
+	rapidjson::Writer<rapidjson::GenericStringBuffer<rapidjson::UTF16<>>, rapidjson::UTF16<>> writer(sbuf);
+	rjd.Accept(writer);
+
+	out = sbuf.GetString();
+	return 0;
+}
+
+int buildSetTorrentLimitRequest(int act, int lmt, std::set<int> & ids, _Out_ std::wstring& out)
+{
+	rapidjson::GenericDocument<rapidjson::UTF16<>> rjd(rapidjson::kObjectType);
+	rapidjson::GenericValue<rapidjson::UTF16<>> fields(rapidjson::kObjectType);
+	rapidjson::GenericValue<rapidjson::UTF16<>> idary(rapidjson::kArrayType);
+	rapidjson::GenericDocument<rapidjson::UTF16<>>::AllocatorType& allocator = rjd.GetAllocator();
+	rapidjson::GenericValue<rapidjson::UTF16<>> vvv(rapidjson::kStringType);
+	rapidjson::GenericValue<rapidjson::UTF16<>> args(rapidjson::kObjectType);
+
+	switch (act) {
+	case CSLA_DOWN:
+		fields.AddMember(L"downloadLimit", (int)lmt, allocator);
+		break;
+	case CSLA_UP:
+		fields.AddMember(L"uploadLimit", (int)lmt, allocator);
+		break;
+	case CSLA_ENABLE_DOWN:
+		fields.AddMember(L"downloadLimited", (bool)true, allocator);
+		break;
+	case CSLA_ENABLE_UP:
+		fields.AddMember(L"uploadLimited", (bool)true, allocator);
+		break;
+	case CSLA_DISABLE_DOWN:
+		fields.AddMember(L"downloadLimited", (bool)false, allocator);
+		break;
+	case CSLA_DISABLE_UP:
+		fields.AddMember(L"uploadLimited", (bool)false, allocator);
+		break;
+
+	default:
+		break;
+	}
+	for (std::set<int>::iterator itis = ids.begin(); itis != ids.end(); itis++) {
+		idary.PushBack(*itis, allocator);
+	}
+	fields.AddMember(L"ids", idary, allocator);
+	rjd.AddMember(L"arguments", fields, allocator);
+	rjd.AddMember(L"method", L"torrent-set", allocator);
+	rjd.AddMember(L"tag", 9, allocator);
+
+	rapidjson::GenericStringBuffer<rapidjson::UTF16<>> sbuf;
+	rapidjson::Writer<rapidjson::GenericStringBuffer<rapidjson::UTF16<>>, rapidjson::UTF16<>> writer(sbuf);
+	rjd.Accept(writer);
+
+	out = sbuf.GetString();
+	return 0;
+}
+
+
+int CmdSetLimit::Process(TransmissionManager * mgr)
+{
+	int qrt = 0;
+
+	if (profile) {
+		std::wstring xquery;
+
+		if (tidset.size() > 0) {
+			buildSetTorrentLimitRequest(limitaction, limitspeed, tidset, xquery);
+		}
+		else {
+			buildSetLimitRequest(limitaction, limitspeed, xquery);
+		}
+		CurlSessionCY* curl = CurlSessionCY::GetInstance();
+		std::wstring resp;
+
+		qrt = curl->SendCurlRequest(profile, xquery, resp);
+	}
+	else {
+		qrt = -1;
+	}
+
+	BufferedJsonAllocator::GetInstance()->Reset();
+
+	return qrt;
+}

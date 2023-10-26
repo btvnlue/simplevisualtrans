@@ -86,7 +86,11 @@ public:
 #define LTV_DELETENODE 4
 #define LTV_COMMITNODE 5
 #define LTV_COMMENTMESSAGE 6
-#define LTV_FINALCOUNT 7 // the last#, for view update/setcount
+#define LTV_RESULT_TORRENT 7
+#define LTV_RESULT_FILE 8
+#define LTV_RESULT_VIEWNODE 9
+
+#define LTV_FINALCOUNT 10 /////////////////////// the last#, for view update/setcount
 
 struct ViewLogItem
 {
@@ -124,7 +128,7 @@ public:
 	int DoneProfileLoading(TransmissionProfile* prof);
 	TransmissionManager* transmissionmgr;
 	int PutCommand(ViewCommand* cmd);
-	int ViewUpdateProfileTorrent(TransmissionProfile *prof, long tid);
+	//int ViewUpdateProfileTorrent(TransmissionProfile *prof, long tid);
 	int ViewUpdateInvalidViewNode(ViewNode* vnd);
 	int RefreshCurrentNode();
 	
@@ -138,16 +142,25 @@ public:
 	int ViewCommitTorrents(int delay);
 	int ViewDeleteContent(BOOL withfiles);
 	int ViewPauseTorrent(BOOL dopause);
+	int ViewEnableFile(BOOL enable);
+	int ViewPriorityFile(int setpriority);
 	int ViewVerifyTorrent();
 	int ViewSetLocation();
+	int ViewSetLimit(int vslup);
 	int GetSelectedViewNodes(std::set<ViewNode*>& vds);
 	int ProcessInputCommand();
-	int PrcessInputCommandSetLocation(std::vector<std::wstring>& cmds);
+	int ProcessInputCommandSetLocation(std::vector<std::wstring>& cmds);
+	int ProcessInputCommandSetLimit(std::vector<std::wstring>& cmds);
+	int ProcessInputCommandEnableLimit(std::vector<std::wstring>& cmds);
+	int ProcessInputCommandSetTorrentLimit(std::vector<std::wstring>& cmds);
+
+
 	TransmissionProfile* GetCurrentProfile();
 	int FullRefreshProfileNodes(TransmissionProfile* prof);
 	int RefreshProfileNodeDetail(TransmissionProfile* prof, long tid);
 	int RefreshProfileStatus(TransmissionProfile* prof);
 	TransmissionProfile* GetViewNodeProfile(ViewNode* vnd);
+	TorrentNode* GetCurrentTorrent();
 	int ShowContextMenu(int xx, int yy);
 
 	/////////////////////////////////////////////////////////
@@ -166,6 +179,7 @@ public:
 	/////////////////////////////////////////////////////////
 	std::vector<ViewNode*> currentnodelist;
 	ViewNode* currentnode;
+	long pieceItemIndex;
 	int listsortindex;
 	bool listsortdesc;
 	//std::map<int, std::wstring> tnpnames;
@@ -178,7 +192,7 @@ public:
 	int ListSortFiles(std::vector<ViewNode*>& tns, int sidx, bool asc);
 	int ListUpdateViewNode(ViewNode* vnd);
 	int ListSortTorrentGroup(int sidx);
-	int ListBuildViewNodeContent(ViewNode* vnd);
+	int ListBuildTorrentContent(ViewNode* vnd);
 	int ListBuildClipboardContent(ViewNode* vnd);
 	int ListBuildFileContent(ViewNode* vnd);
 	int ListUpdateViewNodeInvalid(ViewNode* vnd);

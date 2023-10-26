@@ -32,6 +32,7 @@ struct StatusStatistics
 	int sessioncount;
 	int sessionactive;
 };
+
 struct ProfileStatus
 {
 	int downspeed;
@@ -41,7 +42,22 @@ struct ProfileStatus
 	int pausecount;
 	struct StatusStatistics total;
 	struct StatusStatistics current;
+	int downlimit;
+	int uplimit;
+	bool downlimitenable;
+	bool uplimitenable;
+	std::wstring version;
+	int rpc;
+	std::wstring session;
 };
+
+typedef std::set<ViewNode*> ViewSet;
+typedef std::map<TorrentFileNode *, ViewNode *> FileViewMap;
+typedef std::map<TorrentNode *, ViewSet> TorrentViewMap;
+typedef std::map<TorrentFileNode *, ViewSet> PathViewMap;
+typedef std::map<std::wstring, long> TrackerGroupMap;
+typedef std::map<long, TrackerCY*> TrackerMap;
+typedef std::map<long, TorrentNode*> TorrentMap;
 
 class TransmissionProfile
 {
@@ -54,44 +70,48 @@ public:
 	std::wstring username;
 	std::wstring passwd;
 	std::wstring token;
+	
 	TransmissionSessionState state;
 	bool inrefresh;
 	struct ProfileStatus stat;
-	std::map<std::wstring, TrackerCY*> _trackers;
+	TrackerMap _trackers;
+	TrackerGroupMap trackergroupmap;
 
-	std::map<long, TorrentNode*> torrents;
+	TorrentMap torrents;
 	ViewNode* totalview;
 	ViewNode* profileview;
-	std::map<TorrentNode*, std::set<ViewNode*>> tvmap;
+	
+	TorrentViewMap tvmap;
+	FileViewMap fvmap;
+	PathViewMap pvmap;
+
 	std::set<TrackerCY*> trackers;
-	std::set<ViewNode*> updateviewnodes;
+	ViewSet updateviewnodes;
 	std::set<TorrentNode*> updatetorrents;
 	std::set<TorrentFileNode*> updatefiles;
 
 	TorrentNode* GetTorrent(long tid);
 	int AddTorrentTotalView(TorrentNode* trt);
-	int GetTorrentViewNodes(long tid, std::set<ViewNode*>& vds);
 	int GetTorrentViewNodes(TorrentNode* torrent, std::set<ViewNode*>& vds);
+	ViewNode* GetFileViewNode(TorrentFileNode* file);
 	int GetValidTorrentIds(std::set<long>& tids);
 	int GetValidTorrents(std::set<TorrentNode*> tts);
-	TrackerCY* GetTracker(std::wstring& tcklink);
-	int UpdateTorrent(TorrentNode * torrent);
 	int UpdateRawTorrent(int tid, RawTorrentValuePair* rawtt);
-	int UpdateTorrentViewNodes(long tid);
-	int UpdateTorrentViewNodes(TorrentNode* ttn);
+	int UpdateTorrentView(TorrentNode* ttn);
 	int MarkTorrentInvalid(long tid);
-	//int UpdateProfileTrackers(TorrentNode* torrent);
 	int UpdateTorrentTrackerViewNodes(ViewNode* vnd);
-	int UpdateTorrentFileViewNodes(ViewNode* vnd);
+	int UpdateTorrentFileView(TorrentFileNode* vnd);
 	int UpdateStatusDispValues();
 	bool HasViewNode(ViewNode* vnd);
-
-	int copyRawFileStat(TorrentFileNode* file, RawTorrentValuePair * rawnode);
-	int CopyRawTorrent(TorrentNode * ttn, RawTorrentValuePair * rawnode);
 	TrackerCY * GetRawTracker(RawTorrentValuePair * rawnode);
+
+	int CopyRawTorrentData(TorrentNode * ttn, RawTorrentValuePair * rawnode);
+	int copyRawTorrent(TorrentNode * ttn, RawTorrentValuePair * rawnode);
+	int copyRawFileStat(TorrentFileNode* file, RawTorrentValuePair * rawnode);
 	int copyRawFile(TorrentFileNode* root, TorrentFileNode* file, RawTorrentValuePair * rawnode);
 	int copyRawTrackers(TorrentNode* ttn, RawTorrentValuePair * rawnode);
-
+	int copyRawPeers(int tt, TorrentNode * ttn, RawTorrentValuePair * rawnode);
+	int copyRawSessionInfo(RawTorrentValuePair * rawnode, int level);
 
 	wchar_t* dispupspeed = dispbuf;
 	wchar_t* dispdownspeed = dispbuf + 20;
@@ -108,5 +128,10 @@ public:
 	wchar_t* dispcurrentfiles = dispbuf + 220;
 	wchar_t* dispcurrentsessions = dispbuf + 240;
 	wchar_t* dispcurrentactive = dispbuf + 260;
+	wchar_t* dispdownlimit = dispbuf + 275;
+	wchar_t* dispuplimit = dispbuf + 290;
+	wchar_t* dispupenable = dispbuf + 305;
+	wchar_t* dispdownenable = dispbuf + 310;
+	wchar_t* disprpc = dispbuf + 315;
 };
 
