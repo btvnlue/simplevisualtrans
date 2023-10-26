@@ -1,0 +1,168 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Resource Files\Ribbon Handler">
+      <UniqueIdentifier>{0770c6c0-ff85-49b4-854d-23d624bed3a9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\Ribbon Handler\bitmap">
+      <UniqueIdentifier>{10a921fd-eb3f-4eab-9c28-2f52e68e325a}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="framework.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SimpleVisualTransCY.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="WindowViewCY.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CSplitWnd.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CPanelWindow.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TransmissionProfile.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="INIFileTool.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TransmissionManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TorrentNode.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CurlSessionCY.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ViewManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RibbonHandlerMain.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Utilities.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="SimpleVisualTransCY.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="WindowViewCY.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CSplitWnd.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CPanelWindow.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TransmissionProfile.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="INIFileTool.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TransmissionManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TorrentNode.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CurlSessionCY.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ViewManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Utilities.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="SimpleVisualTransCY.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="small.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="SimpleVisualTransCY.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="ribbon\AddTableL.bmp">
+      <Filter>Resource Files\Ribbon Handler\bitmap</Filter>
+    </Image>
+    <Image Include="ribbon\AddTableL_keep.bmp">
+      <Filter>Resource Files\Ribbon Handler\bitmap</Filter>
+    </Image>
+    <Image Include="ribbon\AddTableS.bmp">
+      <Filter>Resource Files\Ribbon Handler\bitmap</Filter>
+    </Image>
+    <Image Include="ribbon\AddTorrentL.bmp">
+      <Filter>Resource Files\Ribbon Handler\bitmap</Filter>
+    </Image>
+    <Image Include="ribbon\AddTorrentS.bmp">
+      <Filter>Resource Files\Ribbon Handler\bitmap</Filter>
+    </Image>
+    <Image Include="ribbon\DeleteContentL.bmp">
+      <Filter>Resource Files\Ribbon Handler\bitmap</Filter>
+    </Image>
+    <Image Include="ribbon\DeleteL.bmp">
+      <Filter>Resource Files\Ribbon Handler\bitmap</Filter>
+    </Image>
+    <Image Include="ribbon\ExitL.bmp">
+      <Filter>Resource Files\Ribbon Handler\bitmap</Filter>
+    </Image>
+    <Image Include="ribbon\PauseTorrentL.bmp">
+      <Filter>Resource Files\Ribbon Handler\bitmap</Filter>
+    </Image>
+    <Image Include="ribbon\ProfileL.bmp">
+      <Filter>Resource Files\Ribbon Handler\bitmap</Filter>
+    </Image>
+    <Image Include="ribbon\ResumeTorrentL.bmp">
+      <Filter>Resource Files\Ribbon Handler\bitmap</Filter>
+    </Image>
+    <Image Include="ribbon\SetLocationL.bmp">
+      <Filter>Resource Files\Ribbon Handler\bitmap</Filter>
+    </Image>
+    <Image Include="ribbon\UpLevelL.bmp">
+      <Filter>Resource Files\Ribbon Handler\bitmap</Filter>
+    </Image>
+    <Image Include="ribbon\VerifyL.bmp">
+      <Filter>Resource Files\Ribbon Handler\bitmap</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="ribbon\RibbonHandlerMain.xaml">
+      <Filter>Resource Files\Ribbon Handler</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="RibbonHandlerMain.bml" />
+  </ItemGroup>
+</Project>
