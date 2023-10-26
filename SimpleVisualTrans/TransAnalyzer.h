@@ -11,7 +11,7 @@
 
 class CurlSession;
 
-struct TorrentTracker
+struct TrackerCY
 {
 	std::wstring announce;
 	unsigned long id;
@@ -103,6 +103,7 @@ struct TorrentNode
 	long piecesdatasize = 0;
 	unsigned long long desired = 0;
 	unsigned char* piecesdata = NULL;
+	bool valid = true;
 	struct {
 		int count = 0;
 		struct TorrentNodeFile* file = NULL;
@@ -128,7 +129,7 @@ public:
 	int addTorrents(TorrentNode* trt);
 	int addGroup(TorrentGroup* grp);
 	int updateSize();
-	//int GetNodes(std::set<TorrentNode*>& nds);
+	int GetNodes(std::set<TorrentNode*>& nds);
 	int GetTorrentsCount() const;
 	TorrentNode* getTorrent(unsigned long tid);
 	TorrentGroup* getGroup(const std::wstring& gname);
@@ -175,7 +176,7 @@ public:
 	std::wstring hosturl;
 	std::wstring username;
 	std::wstring password;
-	std::map<std::wstring, TorrentTracker*> trackers;
+	std::map<std::wstring, TrackerCY*> trackers;
 	std::list<int> removed;
 	TorrentGroup* groupRoot;
 	SessionInfo session;

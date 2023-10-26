@@ -3,8 +3,8 @@
 
 #include <sstream>
 
-int FormatViewSize(wchar_t* buf, size_t bufsz, unsigned __int64 size);
-int FormatByteSize(wchar_t* buf, size_t bufsz, unsigned __int64 size);
+int FormatNumberView(wchar_t* buf, size_t bufsz, unsigned __int64 size);
+int FormatNumberByteView(wchar_t* buf, size_t bufsz, unsigned __int64 size);
 
 std::set<TreeParmData*> TreeItemParmDataHelper::parms;
 
@@ -125,13 +125,13 @@ int CViewTreeFrame::UpdateTreeViewTorrentDetail(TorrentParmItems* items)
 			tiu.cchTextMax = (int)wcslen(tbuf);
 			TreeView_SetItem(hTree, &tiu);
 
-			FormatViewSize(tbuf + 512, 512, trt->size);
+			FormatNumberView(tbuf + 512, 512, trt->size);
 			wsprintf(tbuf, L"Size: %s", tbuf + 512);
 			tiu.cchTextMax = (int)wcslen(tbuf);
 			tiu.hItem = items->size;
 			TreeView_SetItem(hTree, &tiu);
 
-			FormatByteSize(tbuf + 512, 512, trt->size);
+			FormatNumberByteView(tbuf + 512, 512, trt->size);
 			wsprintf(tbuf, L"Size (View): %s", tbuf + 512);
 			tiu.cchTextMax = (int)wcslen(tbuf);
 			tiu.hItem = items->viewsize;
@@ -557,7 +557,7 @@ void CViewTreeFrame::UpdateTreeViewGroup(TreeGroupShadow* gti)
 			if (ntg->hnode == NULL) {
 				tis = { 0 };
 				tis.item.mask = TVIF_TEXT | TVIF_PARAM;
-				FormatByteSize(tbuf + 512, 512, ttg->size);
+				FormatNumberByteView(tbuf + 512, 512, ttg->size);
 				wsprintf(tbuf, L"(%s) %s", tbuf + 512, ttg->name.c_str());
 				tis.item.cchTextMax = (int)wcslen(tbuf);
 				tis.item.pszText = (LPWSTR)tbuf;
@@ -576,7 +576,7 @@ void CViewTreeFrame::UpdateTreeViewGroup(TreeGroupShadow* gti)
 					TVITEM tvi;
 					tvi.hItem = ntg->hnode;
 					tvi.mask = TVIF_TEXT;
-					FormatByteSize(tbuf + 512, 512, ittg->second->size);
+					FormatNumberByteView(tbuf + 512, 512, ittg->second->size);
 					wsprintf(tbuf, L"(%s) %s", tbuf + 512, ittg->second->name.c_str());
 					tvi.pszText = tbuf;
 					tvi.cchTextMax = wcslen(tbuf);
@@ -624,22 +624,24 @@ HTREEITEM CViewTreeFrame::UpdateTreeViewNodeItem(TreeGroupShadow* tgs, TorrentNo
 	TVINSERTSTRUCT tis;
 	wchar_t tbuf[1024];
 	TreeParmData* ntipd;
-	HTREEITEM hti;
+	HTREEITEM hti = NULL;
 
 	if (ittt == tgs->nodeitems.end()) {
-		tis = { 0 };
-		tis.item.mask = TVIF_TEXT | TVIF_PARAM;
-		wsprintf(tbuf, L"%s", node->name.c_str());
-		tis.item.cchTextMax = (int)wcslen(tbuf);
-		tis.item.pszText = (LPWSTR)tbuf;
-		tis.hParent = tgs->hnode;
-		ntipd = TreeItemParmDataHelper::CreateTreeItemParmData(TreeParmData::Torrent);
-		ntipd->node = node;
-		tis.item.lParam = (LPARAM)ntipd;
+		if (node->valid) {
+			tis = { 0 };
+			tis.item.mask = TVIF_TEXT | TVIF_PARAM;
+			wsprintf(tbuf, L"%s", node->name.c_str());
+			tis.item.cchTextMax = (int)wcslen(tbuf);
+			tis.item.pszText = (LPWSTR)tbuf;
+			tis.hParent = tgs->hnode;
+			ntipd = TreeItemParmDataHelper::CreateTreeItemParmData(TreeParmData::Torrent);
+			ntipd->node = node;
+			tis.item.lParam = (LPARAM)ntipd;
 
-		hti = TreeView_InsertItem(hTree, &tis);
-		if (hti) {
-			tgs->nodeitems[node] = hti;
+			hti = TreeView_InsertItem(hTree, &tis);
+			if (hti) {
+				tgs->nodeitems[node] = hti;
+			}
 		}
 	}
 	else {

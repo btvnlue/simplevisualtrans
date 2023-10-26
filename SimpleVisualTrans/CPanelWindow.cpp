@@ -1,5 +1,7 @@
 #include "CPanelWindow.h"
 
+#include <CommCtrl.h>
+
 std::map<HWND, CPanelWindow*> CPanelWindow::views;
 
 LRESULT CPanelWindow::ResizeCurrentWindow(HWND hcurr)
@@ -27,6 +29,21 @@ LRESULT CPanelWindow::WndProcInstance(HWND hWnd, UINT message, WPARAM wParam, LP
 	//	EndPaint(hWnd, &ps);
 	//}
 	//break;
+	case WM_COMMAND:
+	case WM_NOTIFY:
+	{
+		HWND hpwnd = ::GetParent(hWnd);
+		if (hpwnd) {
+			SendMessageW(hpwnd, message, wParam, lParam);
+		}
+		if (message == WM_NOTIFY) {
+			LPNMHEADER pnm = (LPNMHEADER)lParam;
+			if (pnm->hdr.code == HDN_TRACK) {
+				lst = 0;
+			}
+		}
+	}
+	break;
 	case WM_SIZE:
 		if (hCurrentWindow) {
 			ResizeCurrentWindow(hCurrentWindow);

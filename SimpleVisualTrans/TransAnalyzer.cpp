@@ -450,7 +450,7 @@ TorrentNode* TransAnalyzer::GetTorrentNodeById(unsigned long tid)
 
 TorrentGroup* TransAnalyzer::GetTrackerGroup(const std::wstring& tracker)
 {
-	std::map<std::wstring, TorrentTracker*>::iterator ittt;
+	std::map<std::wstring, TrackerCY*>::iterator ittt;
 	TorrentGroup* rtg = NULL;
 
 	std::wstring tgn = getTrackerName(tracker);
@@ -466,7 +466,7 @@ int TransAnalyzer::RemoveTorrent(unsigned long tid)
 	if (rtt) {
 		fulllist->removeTorrent(rtt);
 		trackertorrents->removeTorrent(rtt);
-		TorrentNodeHelper::DeleteTorrentNode(rtt);
+		//TorrentNodeHelper::DeleteTorrentNode(rtt);
 	}
 	return 0;
 }
@@ -1060,7 +1060,7 @@ void TransAnalyzer::extractTracker(rapidjson::GenericValue<rapidjson::UTF16<>>& 
 		std::wstring anc = trka[L"announce"].GetString();
 		
 		if (trackers.find(anc) == trackers.end()) {
-			TorrentTracker* ntk = new TorrentTracker();
+			TrackerCY* ntk = new TrackerCY();
 			
 			ntk->announce = anc;
 			trackers[anc] = ntk;
@@ -1378,13 +1378,12 @@ int TorrentGroup::removeTorrent(TorrentNode* trt)
 
 	while (keepseek) {
 		if (ittt->second == trt) {
-			torrents_.erase(ittt);
-			keepseek = FALSE;
+			ittt->second->valid = false;
+			//keepseek = FALSE;
 		}
-		else {
-			ittt++;
-			keepseek = ittt != torrents_.end() ? keepseek : FALSE;
-		}
+
+		ittt++;
+		keepseek = ittt != torrents_.end() ? keepseek : FALSE;
 	}
 
 	for (std::map<std::wstring, TorrentGroup*>::iterator itsb = subs.begin()

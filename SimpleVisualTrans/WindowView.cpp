@@ -58,7 +58,7 @@ int FormatNormalNumber(wchar_t* buf, size_t bufsz, long num)
 	return 0;
 }
 
-int FormatViewSize(wchar_t* buf, size_t bufsz, unsigned __int64 size) 
+int FormatNumberView(wchar_t* buf, size_t bufsz, unsigned __int64 size) 
 {
 	unsigned int ccn;
 	wchar_t tbf[128];
@@ -83,7 +83,7 @@ int FormatViewSize(wchar_t* buf, size_t bufsz, unsigned __int64 size)
 	return 0;
 }
 
-int FormatByteSize(wchar_t* buf, size_t bufsz, unsigned __int64 size)
+int FormatNumberByteView(wchar_t* buf, size_t bufsz, unsigned __int64 size)
 {
 	unsigned int rst = size & 0x3FF;
 	wchar_t smark[] = L"BKMGTPEZY";
@@ -111,8 +111,8 @@ int FormatByteSize(wchar_t* buf, size_t bufsz, unsigned __int64 size)
 int FormatDualByteView(wchar_t* wbuf, int bsz, unsigned __int64 size)
 {
 	wchar_t dbuf[1024];
-	FormatByteSize(dbuf, 1024, size);
-	FormatViewSize(dbuf + 512, 512, size);
+	FormatNumberByteView(dbuf, 1024, size);
+	FormatNumberView(dbuf + 512, 512, size);
 	wsprintf(wbuf, L"%s (%s)", dbuf + 512, dbuf);
 	return 0;
 }
@@ -437,11 +437,11 @@ int WindowView::UpdateViewSession(SessionInfo* ssn)
 
 	listview->UpdateListViewSession(ssn);
 	
-	FormatByteSize(wbuf + 512, 512, ssn->downloadspeed);
+	FormatNumberByteView(wbuf + 512, 512, ssn->downloadspeed);
 	wsprintf(wbuf, L"Down: %s/s", wbuf + 512);
 	::SendMessage(hStatus, SB_SETTEXT, MAKEWPARAM(0, 0), (LPARAM)wbuf);
 
-	FormatByteSize(wbuf + 512, 512, ssn->uploadspeed);
+	FormatNumberByteView(wbuf + 512, 512, ssn->uploadspeed);
 	wsprintf(wbuf, L"Up: %s/s", wbuf + 512);
 	::SendMessage(hStatus, SB_SETTEXT, MAKEWPARAM(1, 0), (LPARAM)wbuf);
 

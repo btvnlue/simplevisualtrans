@@ -9,10 +9,10 @@
 #define WM_U_TREESELECTNODE WM_USER + 0x123a
 #define WM_U_TREESELECTGROUP WM_USER + 0x123b
 
-int FormatByteSize(wchar_t* buf, size_t bufsz, unsigned __int64 size);
+int FormatNumberByteView(wchar_t* buf, size_t bufsz, unsigned __int64 size);
 int FormatDualByteView(wchar_t* wbuf, int bsz, unsigned __int64 size);
 int FormatNormalNumber(wchar_t* buf, size_t bufsz, long num);
-int FormatViewSize(wchar_t* buf, size_t bufsz, unsigned __int64 size);
+int FormatNumberView(wchar_t* buf, size_t bufsz, unsigned __int64 size);
 int FormatViewDouble(wchar_t* wbuf, size_t bsz, double dval);
 int FormatViewStatus(wchar_t* wbuf, size_t bsz, long status);
 int FormatViewDouble(wchar_t* wbuf, size_t bsz, double dval);
@@ -168,20 +168,20 @@ int CViewListFrame::UpdateListViewSession(SessionInfo* ssn)
 		ListView_SetItemText(hList, iti, 1, wbuf);
 		iti++;
 
-		FormatByteSize(wbuf, 128, ssn->downloaded);
+		FormatNumberByteView(wbuf, 128, ssn->downloaded);
 		ListView_SetItemText(hList, iti, 1, wbuf);
 		iti++;
 
-		FormatByteSize(wbuf, 128, ssn->uploaded);
+		FormatNumberByteView(wbuf, 128, ssn->uploaded);
 		ListView_SetItemText(hList, iti, 1, wbuf);
 		iti++;
 
-		FormatByteSize(wbuf + 64, 64, ssn->downloadspeed);
+		FormatNumberByteView(wbuf + 64, 64, ssn->downloadspeed);
 		wsprintf(wbuf, L"%s/s", wbuf + 64);
 		ListView_SetItemText(hList, iti, 1, wbuf);
 		iti++;
 
-		FormatByteSize(wbuf + 64, 64, ssn->uploadspeed);
+		FormatNumberByteView(wbuf + 64, 64, ssn->uploadspeed);
 		wsprintf(wbuf, L"%s/s", wbuf + 64);
 		ListView_SetItemText(hList, iti, 1, wbuf);
 		iti++;
@@ -860,7 +860,7 @@ int CViewListFrame::UpdateListViewTorrentFileDetail(HWND hlist, int fii, Torrent
 	lvi.mask = LVIF_TEXT;
 	lvi.iItem = fii;
 	lvi.iSubItem = 5;
-	FormatViewSize(wbuf, 128, cfl->file->size);
+	FormatNumberView(wbuf, 128, cfl->file->size);
 	lvi.pszText = wbuf;
 	lvi.cchTextMax = (int)wcslen(lvi.pszText);
 	ListView_SetItem(hlist, &lvi);
@@ -868,7 +868,7 @@ int CViewListFrame::UpdateListViewTorrentFileDetail(HWND hlist, int fii, Torrent
 	lvi.mask = LVIF_TEXT;
 	lvi.iItem = fii;
 	lvi.iSubItem = 6;
-	FormatViewSize(wbuf + 32, 32, cfl->done);
+	FormatNumberView(wbuf + 32, 32, cfl->done);
 	double dsp = cfl->file->size > 0 ? ((double)cfl->done) / cfl->file->size : 0;
 	FormatViewDouble(wbuf + 64, 64, dsp * 100);
 	wsprintf(wbuf, L"%s (%s%%)", wbuf + 32, wbuf + 64);
@@ -962,17 +962,17 @@ int CViewListFrame::UpdateListViewTorrentDetailData(TorrentNode* node)
 			iti++;
 			ListView_SetItemText(hList, iti, 1, (LPWSTR)node->name.c_str());
 			iti++;
-			FormatViewSize(wbuf, 128, node->size);
+			FormatNumberView(wbuf, 128, node->size);
 			ListView_SetItemText(hList, iti, 1, wbuf);
 			iti++;
-			FormatByteSize(wbuf, 128, node->size);
+			FormatNumberByteView(wbuf, 128, node->size);
 			ListView_SetItemText(hList, iti, 1, wbuf);
 			iti++;
-			FormatByteSize(wbuf + 64, 64, node->downspeed);
+			FormatNumberByteView(wbuf + 64, 64, node->downspeed);
 			wsprintf(wbuf, L"%s/s", wbuf + 64);
 			ListView_SetItemText(hList, iti, 1, wbuf);
 			iti++;
-			FormatByteSize(wbuf + 64, 64, node->upspeed);
+			FormatNumberByteView(wbuf + 64, 64, node->upspeed);
 			wsprintf(wbuf, L"%s/s", wbuf + 64);
 			ListView_SetItemText(hList, iti, 1, wbuf);
 			iti++;
@@ -1000,20 +1000,20 @@ int CViewListFrame::UpdateListViewTorrentDetailData(TorrentNode* node)
 			FormatDualByteView(wbuf, 128, node->uploaded);
 			ListView_SetItemText(hList, iti, 1, wbuf);
 			iti++;
-			FormatByteSize(wbuf, 128, node->corrupt);
+			FormatNumberByteView(wbuf, 128, node->corrupt);
 			ListView_SetItemText(hList, iti, 1, wbuf);
 			iti++;
 			FormatViewDouble(wbuf, 128, node->ratio);
 			ListView_SetItemText(hList, iti, 1, wbuf);
 			iti++;
-			FormatViewSize(wbuf + 64, 64, node->leftsize);
+			FormatNumberView(wbuf + 64, 64, node->leftsize);
 			double dlp = node->size > 0 ? ((double)node->leftsize) / node->size * 100 : 0;
 			FormatViewDouble(wbuf + 96, 32, dlp);
 			wsprintf(wbuf, L"%s (%s%%)", wbuf + 64, wbuf + 96);
 			ListView_SetItemText(hList, iti, 1, wbuf);
 			iti++;
 			double dpc = node->leftsize > 0 ? ((double)node->desired) / node->leftsize : 0;
-			FormatViewSize(wbuf + 32, 32, node->desired);
+			FormatNumberView(wbuf + 32, 32, node->desired);
 			FormatViewDouble(wbuf + 64, 64, dpc * 100);
 			wsprintf(wbuf, L"%s (%s%%)", wbuf + 32, wbuf + 64);
 			ListView_SetItemText(hList, iti, 1, wbuf);
@@ -1278,6 +1278,8 @@ int CViewListFrame::UpdateListViewTorrentNodes(TorrentGroup* grp)
 	ListParmData* lpd;
 	wchar_t wbuf[1024];
 
+	grp->GetNodes(nodes);
+
 	int itc = ListView_GetItemCount(hList);
 	LVITEM lvi = { 0 };
 	for (int ii = 0; ii < itc; ii++) {
@@ -1298,23 +1300,25 @@ int CViewListFrame::UpdateListViewTorrentNodes(TorrentGroup* grp)
 	for (std::set<TorrentNode*>::iterator itnd = nodes.begin()
 		; itnd != nodes.end()
 		; itnd++) {
-		lvi.mask = LVIF_TEXT;
-		wsprintf(wbuf, L"%d", (*itnd)->id);
-		lvi.pszText = wbuf;
-		lvi.cchTextMax = (int)wcslen(lvi.pszText);
-		lvi.iItem = itc;
-		itc = ListView_InsertItem(hList, &lvi);
+		if ((*itnd)->valid) {
+			lvi.mask = LVIF_TEXT;
+			wsprintf(wbuf, L"%d", (*itnd)->id);
+			lvi.pszText = wbuf;
+			lvi.cchTextMax = (int)wcslen(lvi.pszText);
+			lvi.iItem = itc;
+			itc = ListView_InsertItem(hList, &lvi);
 
-		lvi.iItem = itc;
-		lvi.mask = LVIF_PARAM;
-		lpd = GetListParmData(itc);
-		lpd->type = ListParmData::Node;
-		lpd->node = *itnd;
-		lvi.lParam = (LPARAM)lpd;
-		ListView_SetItem(hList, &lvi);
+			lvi.iItem = itc;
+			lvi.mask = LVIF_PARAM;
+			lpd = GetListParmData(itc);
+			lpd->type = ListParmData::Node;
+			lpd->node = *itnd;
+			lvi.lParam = (LPARAM)lpd;
+			ListView_SetItem(hList, &lvi);
 
-		UpdateListViewTorrentNodesDetail(hList, itc, *itnd);
-		itc++;
+			UpdateListViewTorrentNodesDetail(hList, itc, *itnd);
+			itc++;
+		}
 	}
 
 	std::wstring vvv;
@@ -1336,18 +1340,18 @@ int CViewListFrame::UpdateListViewTorrentNodesDetail(HWND hlist, int iti, Torren
 	wchar_t wbuf[128];
 	int isub = 0;
 
-	FormatViewSize(wbuf, 128, nod->id);
+	FormatNumberView(wbuf, 128, nod->id);
 	ListView_SetItemText(hlist, iti, isub, wbuf);
 	isub++;
 
 	ListView_SetItemText(hlist, iti, isub, (LPWSTR)nod->name.c_str());
 	isub++;
 
-	FormatViewSize(wbuf, 128, nod->size);
+	FormatNumberView(wbuf, 128, nod->size);
 	ListView_SetItemText(hlist, iti, isub, wbuf);
 	isub++;
 
-	FormatByteSize(wbuf, 128, nod->size);
+	FormatNumberByteView(wbuf, 128, nod->size);
 	ListView_SetItemText(hlist, iti, isub, wbuf);
 	isub++;
 
@@ -1356,11 +1360,11 @@ int CViewListFrame::UpdateListViewTorrentNodesDetail(HWND hlist, int iti, Torren
 	}
 	isub++;
 
-	FormatByteSize(wbuf, 128, nod->downspeed);
+	FormatNumberByteView(wbuf, 128, nod->downspeed);
 	ListView_SetItemText(hlist, iti, isub, wbuf);
 	isub++;
 
-	FormatByteSize(wbuf, 128, nod->upspeed);
+	FormatNumberByteView(wbuf, 128, nod->upspeed);
 	ListView_SetItemText(hlist, iti, isub, wbuf);
 	isub++;
 
@@ -1421,11 +1425,11 @@ int CViewListFrame::UpdateListViewTorrentGroupData(HWND hlist, int iti, TorrentG
 	int itt = 0;
 	itt++;
 
-	FormatViewSize(wbuf, 128, nod->size);
+	FormatNumberView(wbuf, 128, nod->size);
 	ListView_SetItemText(hlist, iti, itt, wbuf);
 	itt++;
 
-	FormatByteSize(wbuf, 128, nod->size);
+	FormatNumberByteView(wbuf, 128, nod->size);
 	ListView_SetItemText(hlist, iti, itt, wbuf);
 	itt++;
 
@@ -1433,12 +1437,12 @@ int CViewListFrame::UpdateListViewTorrentGroupData(HWND hlist, int iti, TorrentG
 	ListView_SetItemText(hlist, iti, itt, wbuf);
 	itt++;
 
-	FormatByteSize(wbuf + 64, 64, nod->downspeed);
+	FormatNumberByteView(wbuf + 64, 64, nod->downspeed);
 	wsprintf(wbuf, L"%s/s", wbuf + 64);
 	ListView_SetItemText(hlist, iti, itt, wbuf);
 	itt++;
 
-	FormatByteSize(wbuf + 64, 64, nod->upspeed);
+	FormatNumberByteView(wbuf + 64, 64, nod->upspeed);
 	wsprintf(wbuf, L"%s/s", wbuf + 64);
 	ListView_SetItemText(hlist, iti, itt, wbuf);
 	itt++;

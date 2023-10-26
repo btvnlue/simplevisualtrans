@@ -2,6 +2,7 @@
 #include <Windows.h>
 #include <set>
 #include <list>
+#include <map>
 #include <CommCtrl.h>
 
 struct TorrentNode;
