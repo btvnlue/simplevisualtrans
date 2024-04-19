@@ -1,0 +1,105 @@
+// ******************************************************************************
+// * This is an automatically generated file containing the ribbon resource for *
+// * your application.                                                          *
+// ******************************************************************************
+
+#include ".\RibbonHandlerMain.h"
+
+STRINGTABLE 
+BEGIN
+    IDC_CMD_TAB_TORRENTS_LabelTitle_RESID L"Torrents" /* LabelTitle IDC_CMD_TAB_TORRENTS_LabelTitle_RESID: [Torrent] tab for torrents related operations */
+END
+
+STRINGTABLE 
+BEGIN
+    IDC_CMD_FILE_LabelTitle_RESID L"File" /* LabelTitle IDC_CMD_FILE_LabelTitle_RESID: File menu comments */
+END
+
+STRINGTABLE 
+BEGIN
+    IDC_CMD_LIST_LabelTitle_RESID L"List" /* LabelTitle IDC_CMD_LIST_LabelTitle_RESID: List */
+END
+
+STRINGTABLE 
+BEGIN
+    IDC_CMD_QAT_LabelTitle_RESID L"Qat" /* LabelTitle IDC_CMD_QAT_LabelTitle_RESID: List */
+END
+
+STRINGTABLE 
+BEGIN
+    cmdExit_LabelTitle_RESID L"Exit Button" /* LabelTitle cmdExit_LabelTitle_RESID: (null) */
+END
+
+cmdExit_LargeImages_RESID    BITMAP    "res\\ExitL.bmp" /* LargeImages cmdExit_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    cmdGroupTorrent_LabelTitle_RESID L"Torrents Action" /* LabelTitle cmdGroupTorrent_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    cmdGroupView_LabelTitle_RESID L"View Operation" /* LabelTitle cmdGroupView_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    cmdAddTorrent_LabelTitle_RESID L"Add Torrent" /* LabelTitle cmdAddTorrent_LabelTitle_RESID: (null) */
+END
+
+cmdAddTorrent_SmallImages_RESID    BITMAP    "res\\AddTorrentS.bmp" /* SmallImages cmdAddTorrent_SmallImages_RESID: (null) */
+cmdAddTorrent_LargeImages_RESID    BITMAP    "res\\AddTorrentL.bmp" /* LargeImages cmdAddTorrent_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    cmdPauseTorrent_LabelTitle_RESID L"Pause Torrent" /* LabelTitle cmdPauseTorrent_LabelTitle_RESID: (null) */
+END
+
+cmdPauseTorrent_LargeImages_RESID    BITMAP    "res\\PauseTorrentL.bmp" /* LargeImages cmdPauseTorrent_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    cmdResumeTorrent_LabelTitle_RESID L"Resume Torrent" /* LabelTitle cmdResumeTorrent_LabelTitle_RESID: (null) */
+END
+
+cmdResumeTorrent_LargeImages_RESID    BITMAP    "res\\ResumeTorrentL.bmp" /* LargeImages cmdResumeTorrent_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    cmdDeleteTorrent_LabelTitle_RESID L"Delete Torrent" /* LabelTitle cmdDeleteTorrent_LabelTitle_RESID: (null) */
+END
+
+cmdDeleteTorrent_LargeImages_RESID    BITMAP    "res\\DeleteL.bmp" /* LargeImages cmdDeleteTorrent_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    cmdDeleteContentTorrent_LabelTitle_RESID L"Delete Content" /* LabelTitle cmdDeleteContentTorrent_LabelTitle_RESID: (null) */
+END
+
+cmdDeleteContentTorrent_LargeImages_RESID    BITMAP    "res\\DeleteContentL.bmp" /* LargeImages cmdDeleteContentTorrent_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    cmdProfile_LabelTitle_RESID L"Setup Profile" /* LabelTitle cmdProfile_LabelTitle_RESID: (null) */
+END
+
+cmdProfile_LargeImages_RESID    BITMAP    "res\\ProfileL.bmp" /* LargeImages cmdProfile_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    cmdUpperNode_LabelTitle_RESID L"Upper Node" /* LabelTitle cmdUpperNode_LabelTitle_RESID: (null) */
+END
+
+cmdUpperNode_LargeImages_RESID    BITMAP    "res\\UpLevelL.bmp" /* LargeImages cmdUpperNode_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    cmdVerifyTorrent_LabelTitle_RESID L"Verify Torrent" /* LabelTitle cmdVerifyTorrent_LabelTitle_RESID: (null) */
+END
+
+cmdVerifyTorrent_LargeImages_RESID    BITMAP    "res\\VerifyL.bmp" /* LargeImages cmdVerifyTorrent_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    cmdSetLocation_LabelTitle_RESID L"Set Torrent Location" /* LabelTitle cmdSetLocation_LabelTitle_RESID: (null) */
+END
+
+cmdSetLocation_LargeImages_RESID    BITMAP    "res\\SetLocationL.bmp" /* LargeImages cmdSetLocation_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    cmdStartDaemon_LabelTitle_RESID L"Start Daemon" /* LabelTitle cmdStartDaemon_LabelTitle_RESID: (null) */
+END
+
+cmdStartDaemon_LargeImages_RESID    BITMAP    "res\\ProfileL.bmp" /* LargeImages cmdStartDaemon_LargeImages_RESID: (null) */
+SIMPLEVISUALTRANS_RIBBON    UIFILE    "RibbonHandlerMain.bml"

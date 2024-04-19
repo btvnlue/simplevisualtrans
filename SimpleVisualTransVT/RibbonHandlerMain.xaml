@@ -1,0 +1,228 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Application xmlns='http://schemas.microsoft.com/windows/2009/Ribbon'>
+	<!-- Commands section -->
+	<Application.Commands>
+
+		<Command Name="cmdTabTorrent"
+				 Comment="[Torrent] tab for torrents related operations"
+				 Symbol="IDC_CMD_TAB_TORRENTS"
+				 Id="10000" >
+			<Command.LabelTitle>
+				<String Id ="200">Torrents</String>
+			</Command.LabelTitle>
+		</Command>
+		<Command Name="cmdFileMenu"
+				 Comment="File menu comments"
+				 Symbol="IDC_CMD_FILE"
+				 Id="20000">
+			<Command.LabelTitle>
+				<String Id="100">File</String>
+			</Command.LabelTitle>
+		</Command>
+		<Command Name="cmdMRUList"
+				 Comment="List"
+				 Symbol="IDC_CMD_LIST"
+				 Id="20001">
+			<Command.LabelTitle>
+				<String Id="101">List</String>
+			</Command.LabelTitle>
+		</Command>
+		<Command Name="cmdQat"
+				 Comment="List"
+				 Symbol="IDC_CMD_QAT"
+				 Id="20002">
+			<Command.LabelTitle>
+				<String Id="102">Qat</String>
+			</Command.LabelTitle>
+		</Command>
+		<Command Name="cmdExit">
+			<Command.LabelTitle>
+				<String Id ="290">Exit Button</String>
+			</Command.LabelTitle>
+			<Command.LargeImages>
+				<Image Id ="291">res/ExitL.bmp</Image>
+			</Command.LargeImages>
+		</Command>
+		<Command Name="cmdGroupTorrent">
+			<Command.LabelTitle>
+				<String Id ="299">Torrents Action</String>
+			</Command.LabelTitle>
+		</Command>
+		<Command Name="cmdGroupView">
+			<Command.LabelTitle>
+				<String Id ="298">View Operation</String>
+			</Command.LabelTitle>
+		</Command>
+		<Command Name="cmdAddTorrent"
+				 Id="2201">
+			<Command.LabelTitle>
+				<String Id ="210">Add Torrent</String>
+			</Command.LabelTitle>
+			<Command.LargeImages>
+				<Image Id="310">res/AddTorrentL.bmp</Image>
+			</Command.LargeImages>
+			<Command.SmallImages>
+				<Image Id="410">res/AddTorrentS.bmp</Image>
+			</Command.SmallImages>
+		</Command>
+		<Command Name="cmdPauseTorrent"
+				 Id="2202">
+			<Command.LabelTitle>
+				<String Id ="211">Pause Torrent</String>
+			</Command.LabelTitle>
+			<Command.LargeImages>
+				<Image Id="311">res/PauseTorrentL.bmp</Image>
+			</Command.LargeImages>
+		</Command>
+		<Command Name="cmdResumeTorrent"
+				 Id="2203">
+			<Command.LabelTitle>
+				<String Id ="212">Resume Torrent</String>
+			</Command.LabelTitle>
+			<Command.LargeImages>
+				<Image Id="312">res/ResumeTorrentL.bmp</Image>
+			</Command.LargeImages>
+		</Command>
+		<Command Name="cmdDeleteTorrent"
+		 Id="2204">
+			<Command.LabelTitle>
+				<String Id ="214">Delete Torrent</String>
+			</Command.LabelTitle>
+			<Command.LargeImages>
+				<Image Id="314">res/DeleteL.bmp</Image>
+			</Command.LargeImages>
+		</Command>
+		<Command Name="cmdDeleteContentTorrent"
+				 Id="2205">
+			<Command.LabelTitle>
+				<String Id ="215">Delete Content</String>
+			</Command.LabelTitle>
+			<Command.LargeImages>
+				<Image Id="315">res/DeleteContentL.bmp</Image>
+			</Command.LargeImages>
+		</Command>
+		<Command Name="cmdProfile"
+				 Id="2206">
+			<Command.LabelTitle>
+				<String Id ="216">Setup Profile</String>
+			</Command.LabelTitle>
+			<Command.LargeImages>
+				<Image Id="316">res/ProfileL.bmp</Image>
+			</Command.LargeImages>
+		</Command>
+		<Command Name="cmdUpperNode"
+				 Id="2207">
+			<Command.LabelTitle>
+				<String Id ="217">Upper Node</String>
+			</Command.LabelTitle>
+			<Command.LargeImages>
+				<Image Id="317">res/UpLevelL.bmp</Image>
+			</Command.LargeImages>
+		</Command>
+		<Command Name="cmdVerifyTorrent"
+				 Id="2208">
+			<Command.LabelTitle>
+				<String Id="218">Verify Torrent</String>
+			</Command.LabelTitle>
+			<Command.LargeImages>
+				<Image Id="318">res/VerifyL.bmp</Image>
+			</Command.LargeImages>
+		</Command>
+		<Command Name="cmdSetLocation"
+				 Id="2209">
+			<Command.LabelTitle>
+				<String Id="219">Set Torrent Location</String>
+			</Command.LabelTitle>
+			<Command.LargeImages>
+				<Image Id="319">res/SetLocationL.bmp</Image>
+			</Command.LargeImages>
+		</Command>
+		<Command Name="cmdStartDaemon" Id="2210">
+			<Command.LabelTitle>
+				<String Id ="220">Start Daemon</String>
+			</Command.LabelTitle>
+			<Command.LargeImages>
+				<Image Id="320">res/ProfileL.bmp</Image>
+			</Command.LargeImages>
+		</Command>
+	</Application.Commands>
+	<Application.Views>
+		<Ribbon>
+			<Ribbon.ApplicationMenu>
+				<ApplicationMenu CommandName="cmdFileMenu">
+					<MenuGroup Class="MajorItems">
+						<Button CommandName="cmdProfile" />
+						<Button CommandName="cmdStartDaemon" />
+						<Button CommandName="cmdExit" />
+					</MenuGroup>
+				</ApplicationMenu>
+			</Ribbon.ApplicationMenu>
+			<Ribbon.Tabs>
+				<Tab CommandName="cmdTabTorrent">
+					<Tab.ScalingPolicy>
+						<ScalingPolicy>
+							<ScalingPolicy.IdealSizes>
+								<Scale Group="cmdGroupTorrent" Size="Large" />
+							</ScalingPolicy.IdealSizes>
+							<Scale Group="cmdGroupTorrent" Size="Popup" />
+						</ScalingPolicy>
+					</Tab.ScalingPolicy>
+					<Group CommandName="cmdGroupTorrent"> <!--	SizeDefinition="SevenButtons">	-->
+						<SizeDefinition>
+							<ControlNameMap>
+								<ControlNameDefinition Name="addtorrents"/>
+								<ControlNameDefinition Name="pausetorrents"/>
+								<ControlNameDefinition Name="resumetorrents"/>
+								<ControlNameDefinition Name="deletetorrents"/>
+								<ControlNameDefinition Name="deletedata"/>
+								<ControlNameDefinition Name="verifytorrents"/>
+								<ControlNameDefinition Name="setlocation"/>
+							</ControlNameMap>
+							<GroupSizeDefinition Size="Large">
+								<ControlSizeDefinition ControlName="addtorrents" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true"/>
+								<ControlSizeDefinition ControlName="pausetorrents" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true"/>
+								<ControlSizeDefinition ControlName="resumetorrents" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true"/>
+								<ControlSizeDefinition ControlName="deletetorrents" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true"/>
+								<ControlSizeDefinition ControlName="deletedata" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true"/>
+								<ControlSizeDefinition ControlName="verifytorrents" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true"/>
+								<ControlSizeDefinition ControlName="setlocation" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true"/>
+							</GroupSizeDefinition>
+							<GroupSizeDefinition Size="Medium">
+								<ControlSizeDefinition ControlName="addtorrents" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true"/>
+								<ControlSizeDefinition ControlName="pausetorrents" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true"/>
+								<ControlSizeDefinition ControlName="resumetorrents" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true"/>
+								<ControlSizeDefinition ControlName="deletetorrents" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true"/>
+								<ControlSizeDefinition ControlName="deletedata" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true"/>
+								<ControlSizeDefinition ControlName="verifytorrents" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true"/>
+								<ControlSizeDefinition ControlName="setlocation" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true"/>
+							</GroupSizeDefinition>
+							<GroupSizeDefinition Size="Small">
+								<ControlSizeDefinition ControlName="addtorrents" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true"/>
+								<ControlSizeDefinition ControlName="pausetorrents" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true"/>
+								<ControlSizeDefinition ControlName="resumetorrents" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true"/>
+								<ControlSizeDefinition ControlName="deletetorrents" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true"/>
+								<ControlSizeDefinition ControlName="deletedata" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true"/>
+								<ControlSizeDefinition ControlName="verifytorrents" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true"/>
+								<ControlSizeDefinition ControlName="setlocation" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true"/>
+							</GroupSizeDefinition>
+
+						</SizeDefinition>
+						<Button CommandName="cmdAddTorrent" />
+						<Button CommandName="cmdPauseTorrent" />
+						<Button CommandName="cmdResumeTorrent" />
+						<Button CommandName="cmdDeleteTorrent" />
+						<Button CommandName="cmdDeleteContentTorrent" />
+						<Button CommandName="cmdVerifyTorrent" />
+						<Button CommandName="cmdSetLocation" />
+					</Group>
+					<Group CommandName="cmdGroupView" SizeDefinition="OneButton">
+						<Button CommandName="cmdUpperNode" />
+					</Group>
+				</Tab>
+			</Ribbon.Tabs>
+			<Ribbon.QuickAccessToolbar>
+				<QuickAccessToolbar CommandName="cmdQat" />
+			</Ribbon.QuickAccessToolbar>
+		</Ribbon>
+	</Application.Views>
+</Application>
